@@ -1,0 +1,16 @@
+# Build do .NET
+bin/
+obj/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Testes
+TestResults/
+
+# Arquivos locais e segredos
+.env
+appsettings.Local.json
+appsettings.Development.json
