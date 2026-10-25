@@ -10,7 +10,11 @@ obj/
 # Testes
 TestResults/
 
-# Arquivos locais e segredos
+# Configurações locais e segredos
 .env
+.env.*
+!.env.example
+
 appsettings.Local.json
 appsettings.Development.json
+secrets.json
