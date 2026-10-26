@@ -10,6 +10,8 @@ public class Paciente
     public Guid Id { get; private set; }
     public string Nome { get; private set; } = string.Empty;
     public string Email { get; private set; } = string.Empty;
+    public Guid? IdUsuario { get; private set; }
+    public Usuario? Usuario { get; private set; }
     public bool Ativo { get; private set; }
 
     private Paciente()
@@ -39,6 +41,11 @@ public class Paciente
         Ativo = false;
     }
 
+    public void AssociarUsuario(Guid idUsuario)
+    {
+        IdUsuario = idUsuario;
+    }
+
     private static void ValidarDados(string nome, string email)
     {
         if (string.IsNullOrWhiteSpace(nome))
@@ -47,4 +54,6 @@ public class Paciente
         if (string.IsNullOrWhiteSpace(email))
             throw new ArgumentException("O e-mail é obrigatório.", nameof(email));
     }
+
+
 }

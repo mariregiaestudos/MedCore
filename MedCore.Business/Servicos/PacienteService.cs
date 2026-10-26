@@ -1,28 +1,33 @@
-﻿using MedCore.Business.DTOs.Request;
+﻿
+using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
+using MedCore.Business.Validadores;
 using MedCore.Dominio;
-
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MedCore.Business.Servicos;
 
-public class PacienteService(IUnityOfWork _uow) : IPacienteService
+public class PacienteService(
+    IUnityOfWork _uow,
+    ValidadorService _validador,
+    IColetorErros _coletorErros) : IPacienteService
 {
-
-    public async Task<PacienteResponse> Criar(PacienteRequest request)
+    public async Task<PacienteResponse?> Criar(PacienteRequest request)
     {
-        var email = request.Email.Trim();
+        if (!await _validador.ValidarAsync(request))
+            return null;
+
+        var email = request.Email!.Trim();
 
         if (await _uow.Pacientes.ExisteEmail(email))
         {
-            throw new InvalidOperationException(
+            _coletorErros.AdicionarErro(
                 "Já existe um paciente cadastrado com esse e-mail.");
+
+            return null;
         }
 
-        var paciente = new Paciente(request.Nome, email);
+        var paciente = new Paciente(request.Nome!, email);
 
         await _uow.Pacientes.Criar(paciente);
         await _uow.Confirmar();
@@ -30,12 +35,15 @@ public class PacienteService(IUnityOfWork _uow) : IPacienteService
         return MapearParaResponse(paciente);
     }
 
-    public async Task<PacienteResponse> BuscarPorCodigo(Guid codigo)
+    public async Task<PacienteResponse?> BuscarPorCodigo(Guid codigo)
     {
         var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
 
         if (paciente is null)
-            throw new KeyNotFoundException("Paciente não encontrado.");
+        {
+            _coletorErros.AdicionarErro("Paciente não encontrado.");
+            return null;
+        }
 
         return MapearParaResponse(paciente);
     }
@@ -45,19 +53,27 @@ public class PacienteService(IUnityOfWork _uow) : IPacienteService
     {
         var pacientes = await _uow.Pacientes.Buscar(filtros);
 
-        return pacientes.Select(MapearParaResponse).ToList();
+        return pacientes
+            .Select(MapearParaResponse)
+            .ToList();
     }
 
-    public async Task<PacienteResponse> Atualizar(
+    public async Task<PacienteResponse?> Atualizar(
         Guid codigo,
         PacienteRequest request)
     {
+        if (!await _validador.ValidarAsync(request))
+            return null;
+
         var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
 
         if (paciente is null)
-            throw new KeyNotFoundException("Paciente não encontrado.");
+        {
+            _coletorErros.AdicionarErro("Paciente não encontrado.");
+            return null;
+        }
 
-        var email = request.Email.Trim();
+        var email = request.Email!.Trim();
 
         if (!string.Equals(
                 paciente.Email,
@@ -65,11 +81,13 @@ public class PacienteService(IUnityOfWork _uow) : IPacienteService
                 StringComparison.OrdinalIgnoreCase)
             && await _uow.Pacientes.ExisteEmail(email))
         {
-            throw new InvalidOperationException(
+            _coletorErros.AdicionarErro(
                 "Já existe outro paciente cadastrado com esse e-mail.");
+
+            return null;
         }
 
-        paciente.AtualizarDados(request.Nome, email);
+        paciente.AtualizarDados(request.Nome!, email);
 
         await _uow.Pacientes.Atualizar(paciente);
         await _uow.Confirmar();
@@ -77,17 +95,22 @@ public class PacienteService(IUnityOfWork _uow) : IPacienteService
         return MapearParaResponse(paciente);
     }
 
-    public async Task Desativar(Guid codigo)
+    public async Task<bool> Desativar(Guid codigo)
     {
         var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
 
         if (paciente is null)
-            throw new KeyNotFoundException("Paciente não encontrado.");
+        {
+            _coletorErros.AdicionarErro("Paciente não encontrado.");
+            return false;
+        }
 
         paciente.Desativar();
 
         await _uow.Pacientes.Atualizar(paciente);
         await _uow.Confirmar();
+
+        return true;
     }
 
     private static PacienteResponse MapearParaResponse(Paciente paciente)

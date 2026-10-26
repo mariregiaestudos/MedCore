@@ -8,15 +8,10 @@ namespace MedCore.Business.Interfaces;
 
 public interface IPacienteService
 {
-    Task<PacienteResponse> Criar(PacienteRequest request);
 
-    Task<List<PacienteResponse>> Buscar(
-        BuscarPacienteRequest filtros);
-
-    Task<PacienteResponse> Atualizar(
-        Guid codigo,
-        PacienteRequest request);
-
-    Task Desativar(Guid codigo);
-    Task<PacienteResponse> BuscarPorCodigo(Guid codigo);
+    Task<List<PacienteResponse>> Buscar(BuscarPacienteRequest filtros);
+    Task<PacienteResponse?> Criar(PacienteRequest request);
+    Task<PacienteResponse?> BuscarPorCodigo(Guid codigo);
+    Task<PacienteResponse?> Atualizar(Guid codigo, PacienteRequest request);
+    Task<bool> Desativar(Guid codigo);
 }

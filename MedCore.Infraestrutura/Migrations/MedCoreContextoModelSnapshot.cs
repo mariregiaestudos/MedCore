@@ -35,13 +35,61 @@ namespace MedCore.Infraestrutura.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<Guid?>("IdUsuario")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Nome")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("IdUsuario")
+                        .IsUnique()
+                        .HasFilter("[IdUsuario] IS NOT NULL");
+
                     b.ToTable("Pacientes");
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SenhaHash")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.ToTable("Usuario", (string)null);
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Paciente", b =>
+                {
+                    b.HasOne("MedCore.Dominio.Usuario", "Usuario")
+                        .WithOne("Paciente")
+                        .HasForeignKey("MedCore.Dominio.Paciente", "IdUsuario")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
+                {
+                    b.Navigation("Paciente");
                 });
 #pragma warning restore 612, 618
         }
