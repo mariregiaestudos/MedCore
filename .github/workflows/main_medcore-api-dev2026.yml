@@ -41,16 +41,32 @@ jobs:
       - name: Gerar bundle das migrations
         env:
           Jwt__Key: ${{ secrets.MEDCORE_JWT_KEY }}
-          Jwt__Issuer: MedCore
-          Jwt__Audience: MedCore.Api
-        run: >
-          dotnet ef migrations bundle
-          --project MedCore.Infraestrutura/MedCore.Infraestrutura.csproj
-          --startup-project MedCore.Api/MedCore.Api.csproj
-          --configuration Release
-          --output ./efbundle
-          --self-contained
-          --target-runtime linux-x64
+          Jwt__Issuer: ${{ secrets.MEDCORE_JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.MEDCORE_JWT_AUDIENCE }}
+          ConnectionStrings__MedCore: ${{ secrets.MEDCORE_SQL_CONNECTION_STRING }}
+        run: |
+          if [ -z "$Jwt__Key" ]; then
+            echo "O secret MEDCORE_JWT_KEY não está configurado."
+            exit 1
+          fi
+
+          if [ -z "$Jwt__Issuer" ] || [ -z "$Jwt__Audience" ]; then
+            echo "Configure os secrets MEDCORE_JWT_ISSUER e MEDCORE_JWT_AUDIENCE."
+            exit 1
+          fi
+
+          if [ -z "$ConnectionStrings__MedCore" ]; then
+            echo "O secret MEDCORE_SQL_CONNECTION_STRING não está configurado."
+            exit 1
+          fi
+
+          dotnet ef migrations bundle \
+            --project MedCore.Infraestrutura/MedCore.Infraestrutura.csproj \
+            --startup-project MedCore.Api/MedCore.Api.csproj \
+            --configuration Release \
+            --output ./efbundle \
+            --self-contained \
+            --target-runtime linux-x64
 
       - name: Armazenar API publicada
         uses: actions/upload-artifact@v4
