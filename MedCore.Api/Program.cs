@@ -105,6 +105,28 @@ builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
+
+app.Use(async (context, next) =>
+{
+    try
+    {
+        await next();
+    }
+    catch (Exception ex)
+    {
+        var logger = context.RequestServices
+            .GetRequiredService<ILogger<Program>>();
+
+        logger.LogError(
+            ex,
+            "Erro não tratado na requisição {Method} {Path}",
+            context.Request.Method,
+            context.Request.Path);
+
+        throw;
+    }
+});
+
 // Pipeline HTTP
 // Pipeline HTTP
 app.UseSwagger();
