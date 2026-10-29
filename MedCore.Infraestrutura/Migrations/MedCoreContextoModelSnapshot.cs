@@ -44,9 +44,7 @@ namespace MedCore.Infraestrutura.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdUsuario")
-                        .IsUnique()
-                        .HasFilter("[IdUsuario] IS NOT NULL");
+                    b.HasIndex("IdUsuario");
 
                     b.ToTable("Pacientes");
                 });
@@ -80,16 +78,11 @@ namespace MedCore.Infraestrutura.Migrations
             modelBuilder.Entity("MedCore.Dominio.Paciente", b =>
                 {
                     b.HasOne("MedCore.Dominio.Usuario", "Usuario")
-                        .WithOne("Paciente")
-                        .HasForeignKey("MedCore.Dominio.Paciente", "IdUsuario")
+                        .WithMany()
+                        .HasForeignKey("IdUsuario")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Usuario");
-                });
-
-            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
-                {
-                    b.Navigation("Paciente");
                 });
 #pragma warning restore 612, 618
         }

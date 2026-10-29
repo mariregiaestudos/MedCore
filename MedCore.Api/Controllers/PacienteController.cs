@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace MedCore.Api.Controllers;
 
 [Authorize]
-[ApiController]
+[Controller]
 [Route("api/[controller]")]
 public class PacientesController(
     IPacienteService _servico,

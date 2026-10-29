@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿
+using MedCore.Business.Interfaces.IRepositorios;
 
 namespace MedCore.Business.Interfaces;
 
 public interface IUnityOfWork
 {
     IPacienteRepositorio Pacientes { get; }
+    IUsuarioRepositorio Usuarios { get; }
 
-    //O Task<int> representa a quantidade de entradas afetadas pelo SaveChangesAsync do EF Core.
     Task<int> Confirmar();
 }

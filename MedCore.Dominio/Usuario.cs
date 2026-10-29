@@ -11,9 +11,6 @@ public class Usuario
 
     public bool Ativo { get; private set; } = true;
 
-    // Relacionamento opcional com Paciente
-    public Paciente? Paciente { get; private set; }
-
     protected Usuario() { }
 
     public Usuario(string email, string senhaHash)

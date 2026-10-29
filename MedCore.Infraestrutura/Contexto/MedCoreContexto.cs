@@ -39,12 +39,10 @@ public class MedCoreContexto : DbContext
                 .IsRequired();
         });
 
-        modelBuilder.Entity<Paciente>(entity =>
-        {
-            entity.HasOne(p => p.Usuario)
-                .WithOne(u => u.Paciente)
-                .HasForeignKey<Paciente>(p => p.IdUsuario)
-                .OnDelete(DeleteBehavior.Restrict);
-        });
+        modelBuilder.Entity<Paciente>()
+            .HasOne(p => p.Usuario)
+            .WithMany()
+            .HasForeignKey(p => p.IdUsuario)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
