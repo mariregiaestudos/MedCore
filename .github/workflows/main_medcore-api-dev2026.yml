@@ -1,3 +1,4 @@
+
 name: MedCore API - CI e CD
 
 on:
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Compilar e testar
+    name: Compilar, testar e gerar artefatos
     runs-on: ubuntu-latest
 
     steps:
@@ -35,7 +36,20 @@ jobs:
       - name: Publicar API
         run: dotnet publish MedCore.Api/MedCore.Api.csproj --configuration Release --no-build --output ./publish
 
-      - name: Armazenar artefato publicado
+      - name: Instalar ferramenta EF Core
+        run: dotnet tool install dotnet-ef --version '10.*'
+
+      - name: Gerar bundle das migrations
+        run: >
+          dotnet ef migrations bundle
+          --project MedCore.Infraestrutura/MedCore.Infraestrutura.csproj
+          --startup-project MedCore.Api/MedCore.Api.csproj
+          --configuration Release
+          --output ./efbundle
+          --self-contained
+          --target-runtime linux-x64
+
+      - name: Armazenar API publicada
         uses: actions/upload-artifact@v4
         with:
           name: medcore-api
@@ -43,8 +57,16 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+      - name: Armazenar bundle das migrations
+        uses: actions/upload-artifact@v4
+        with:
+          name: medcore-migrations
+          path: ./efbundle
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
-    name: Deploy no Azure App Service
+    name: Atualizar banco e publicar no Azure
     runs-on: ubuntu-latest
     needs: build-and-test
 
@@ -53,11 +75,25 @@ jobs:
       id-token: write
 
     steps:
-      - name: Baixar artefato publicado
+      - name: Baixar API publicada
         uses: actions/download-artifact@v4
         with:
           name: medcore-api
           path: ./publish
+
+      - name: Baixar bundle das migrations
+        uses: actions/download-artifact@v4
+        with:
+          name: medcore-migrations
+          path: ./migrations
+
+      - name: Tornar bundle executável
+        run: chmod +x ./migrations/efbundle
+
+      - name: Aplicar migrations no Azure SQL
+        env:
+          MEDCORE_CONNECTION_STRING: ${{ secrets.MEDCORE_SQL_CONNECTION_STRING }}
+        run: ./migrations/efbundle --connection "$MEDCORE_CONNECTION_STRING"
 
       - name: Login no Azure via OIDC
         uses: azure/login@v2
