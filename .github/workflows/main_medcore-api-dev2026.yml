@@ -45,13 +45,8 @@ jobs:
           Jwt__Audience: ${{ secrets.MEDCORE_JWT_AUDIENCE }}
           ConnectionStrings__MedCore: ${{ secrets.MEDCORE_SQL_CONNECTION_STRING }}
         run: |
-          if [ -z "$Jwt__Key" ]; then
-            echo "O secret MEDCORE_JWT_KEY não está configurado."
-            exit 1
-          fi
-
-          if [ -z "$Jwt__Issuer" ] || [ -z "$Jwt__Audience" ]; then
-            echo "Configure os secrets MEDCORE_JWT_ISSUER e MEDCORE_JWT_AUDIENCE."
+          if [ -z "$Jwt__Key" ] || [ -z "$Jwt__Issuer" ] || [ -z "$Jwt__Audience" ]; then
+            echo "Verifique os secrets JWT do GitHub."
             exit 1
           fi
 
@@ -112,9 +107,17 @@ jobs:
       - name: Aplicar migrations no Azure SQL
         env:
           MEDCORE_CONNECTION_STRING: ${{ secrets.MEDCORE_SQL_CONNECTION_STRING }}
+          Jwt__Key: ${{ secrets.MEDCORE_JWT_KEY }}
+          Jwt__Issuer: ${{ secrets.MEDCORE_JWT_ISSUER }}
+          Jwt__Audience: ${{ secrets.MEDCORE_JWT_AUDIENCE }}
         run: |
           if [ -z "$MEDCORE_CONNECTION_STRING" ]; then
             echo "O secret MEDCORE_SQL_CONNECTION_STRING não está configurado."
+            exit 1
+          fi
+
+          if [ -z "$Jwt__Key" ] || [ -z "$Jwt__Issuer" ] || [ -z "$Jwt__Audience" ]; then
+            echo "As configurações JWT necessárias não estão disponíveis."
             exit 1
           fi
 
