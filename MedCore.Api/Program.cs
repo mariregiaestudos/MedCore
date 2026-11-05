@@ -56,6 +56,10 @@ builder.Services.AddScoped<IUsuarioRepositorio, UsuarioRepositorio>();
 builder.Services.AddScoped<IUnityOfWork, UnityOfWork>();
 builder.Services.AddScoped<IPacienteService, PacienteService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
+builder.Services.AddScoped<IConsultaService, ConsultaService>();
+builder.Services.AddScoped<IConsultaRepositorio, ConsultaRepositorio>();
+builder.Services.AddScoped<IMedicoRepositorio, MedicoRepositorio>();
+builder.Services.AddScoped<IMedicoService, MedicoService>();
 
 builder.Services.AddScoped<
     IValidator<PacienteRequest>,

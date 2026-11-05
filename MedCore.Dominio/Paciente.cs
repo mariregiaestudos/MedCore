@@ -1,68 +1,28 @@
-﻿
-namespace MedCore.Dominio;
+﻿namespace MedCore.Dominio;
 
 public class Paciente
 {
-    public Guid Id { get; private set; }
-    public string Nome { get; private set; } = string.Empty;
-    public string Email { get; private set; } = string.Empty;
+    public Guid Id { get; private set; } = Guid.NewGuid();
 
-    public Guid? IdUsuario { get; private set; }
-    public Usuario? Usuario { get; private set; }
+    public Guid UsuarioId { get; private set; }
+    public Usuario Usuario { get; private set; } = null!;
 
     public bool Ativo { get; private set; }
 
-    private Paciente()
-    {
-    }
+    protected Paciente() { } // EF Core
 
-    public Paciente(string nome, string email)
+    public Paciente(Guid usuarioId)
     {
-        ValidarDados(nome, email);
+        if (usuarioId == Guid.Empty)
+            throw new ArgumentException(
+                "Usuário inválido.",
+                nameof(usuarioId));
 
-        Id = Guid.NewGuid();
-        Nome = nome.Trim();
-        Email = email.Trim();
+        UsuarioId = usuarioId;
         Ativo = true;
     }
 
-    public void AtualizarDados(string nome, string email)
-    {
-        ValidarDados(nome, email);
+    public void Desativar() => Ativo = false;
 
-        Nome = nome.Trim();
-        Email = email.Trim();
-    }
-
-    public void AssociarUsuario(Guid idUsuario)
-    {
-        if (idUsuario == Guid.Empty)
-            throw new ArgumentException(
-                "O código do usuário é obrigatório.",
-                nameof(idUsuario));
-
-        IdUsuario = idUsuario;
-    }
-
-    public void DesassociarUsuario()
-    {
-        IdUsuario = null;
-        Usuario = null;
-    }
-
-    public void Desativar()
-    {
-        Ativo = false;
-    }
-
-    private static void ValidarDados(string nome, string email)
-    {
-        if (string.IsNullOrWhiteSpace(nome))
-            throw new ArgumentException(
-                "O nome é obrigatório.", nameof(nome));
-
-        if (string.IsNullOrWhiteSpace(email))
-            throw new ArgumentException(
-                "O e-mail é obrigatório.", nameof(email));
-    }
+    public void Ativar() => Ativo = true;
 }

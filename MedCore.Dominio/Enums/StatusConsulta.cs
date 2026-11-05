@@ -7,6 +7,7 @@ namespace MedCore.Dominio.Enums;
 public enum StatusConsulta
 {
     Agendada = 1,
-    Cancelada = 2,
-    Realizada = 3
+    Confirmada = 2,
+    Concluida = 3,
+    Cancelada = 4
 }

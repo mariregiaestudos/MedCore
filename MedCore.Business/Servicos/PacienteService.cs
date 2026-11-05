@@ -1,4 +1,5 @@
 ﻿
+
 using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
@@ -27,7 +28,11 @@ public class PacienteService(
             return null;
         }
 
-        var paciente = new Paciente(request.Nome!, email);
+        var paciente = new Paciente(
+            request.Nome!,
+            email,
+            request.Cpf!,
+            request.DataNascimento!.Value);
 
         await _uow.Pacientes.Criar(paciente);
         await _uow.Confirmar();
@@ -65,7 +70,7 @@ public class PacienteService(
         if (!await _validador.ValidarAsync(request))
             return null;
 
-        var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
+        Paciente? paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
 
         if (paciente is null)
         {
@@ -87,8 +92,11 @@ public class PacienteService(
             return null;
         }
 
-        paciente.AtualizarDados(request.Nome!, email);
-
+        paciente.AlterarDados(
+            request.Nome!,
+            email,
+            request.Cpf!,
+            request.DataNascimento!.Value);
         await _uow.Pacientes.Atualizar(paciente);
         await _uow.Confirmar();
 

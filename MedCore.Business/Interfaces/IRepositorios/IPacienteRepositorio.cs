@@ -10,7 +10,7 @@ namespace MedCore.Business.Interfaces;
 public interface IPacienteRepositorio
 {
     Task Criar(Paciente paciente);
-    Task<Paciente?> BuscarPorCodigo(Guid codigo);
+    Task<Paciente?> BuscarPorCodigo(Guid id);
     Task<List<Paciente>> Buscar(BuscarPacienteRequest filtros);
     Task Atualizar(Paciente paciente);
     Task<bool> ExisteEmail(string email);

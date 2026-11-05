@@ -1,35 +1,62 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-
-namespace MedCore.Dominio;
+﻿namespace MedCore.Dominio;
 
 public class Medico
 {
-    public Guid Codigo { get; private set; }
-    public string Nome { get; private set; } = string.Empty;
-    public string Crm { get; private set; } = string.Empty;
+    public Guid Id { get; private set; } = Guid.NewGuid();
+
+    public Guid UsuarioId { get; private set; }
+    public Usuario Usuario { get; private set; } = null!;
+
+    public string CRM { get; private set; } = string.Empty;
+    public string UF { get; private set; } = string.Empty;
     public string Especialidade { get; private set; } = string.Empty;
 
-    private Medico() { }
+    public bool Ativo { get; private set; }
 
-    public Medico(string nome, string crm, string especialidade)
+    protected Medico() { } // EF Core
+
+    public Medico(
+        Guid usuarioId,
+        string crm,
+        string uf,
+        string especialidade)
     {
-        if (string.IsNullOrWhiteSpace(nome))
+        if (usuarioId == Guid.Empty)
             throw new ArgumentException(
-                "O nome é obrigatório.", nameof(nome));
+                "Usuário inválido.",
+                nameof(usuarioId));
+
+        UsuarioId = usuarioId;
+        AlterarDados(crm, uf, especialidade);
+        Ativo = true;
+    }
+
+    public void AlterarDados(
+        string crm,
+        string uf,
+        string especialidade)
+    {
+        crm = crm?.Trim() ?? string.Empty;
+        uf = uf?.Trim().ToUpperInvariant() ?? string.Empty;
+        especialidade = especialidade?.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(crm))
-            throw new ArgumentException(
-                "O CRM é obrigatório.", nameof(crm));
+            throw new ArgumentException("CRM obrigatório.", nameof(crm));
+
+        if (uf.Length != 2)
+            throw new ArgumentException("UF inválida.", nameof(uf));
 
         if (string.IsNullOrWhiteSpace(especialidade))
             throw new ArgumentException(
-                "A especialidade é obrigatória.", nameof(especialidade));
+                "Especialidade obrigatória.",
+                nameof(especialidade));
 
-        Codigo = Guid.NewGuid();
-        Nome = nome.Trim();
-        Crm = crm.Trim();
-        Especialidade = especialidade.Trim();
+        CRM = crm;
+        UF = uf;
+        Especialidade = especialidade;
     }
+
+    public void Desativar() => Ativo = false;
+
+    public void Ativar() => Ativo = true;
 }

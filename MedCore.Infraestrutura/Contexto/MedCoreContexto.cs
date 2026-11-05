@@ -12,37 +12,16 @@ public class MedCoreContexto : DbContext
     {
     }
 
-    public DbSet<Paciente> Pacientes { get; set; } = null!;
+    public DbSet<Paciente> Pacientes => Set<Paciente>();
     public DbSet<Usuario> Usuarios => Set<Usuario>();
+    public DbSet<Medico> Medicos => Set<Medico>();
+    public DbSet<Consulta> Consultas => Set<Consulta>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.ApplyConfigurationsFromAssembly(
+            typeof(MedCoreContexto).Assembly);
+
         base.OnModelCreating(modelBuilder);
-
-        modelBuilder.Entity<Usuario>(entity =>
-        {
-            entity.ToTable("Usuario");
-
-            entity.HasKey(u => u.Id);
-
-            entity.Property(u => u.Email)
-                .HasMaxLength(256)
-                .IsRequired();
-
-            entity.HasIndex(u => u.Email)
-                .IsUnique();
-
-            entity.Property(u => u.SenhaHash)
-                .IsRequired();
-
-            entity.Property(u => u.Ativo)
-                .IsRequired();
-        });
-
-        modelBuilder.Entity<Paciente>()
-            .HasOne(p => p.Usuario)
-            .WithMany()
-            .HasForeignKey(p => p.IdUsuario)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

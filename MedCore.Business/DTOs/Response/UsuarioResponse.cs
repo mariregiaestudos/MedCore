@@ -6,7 +6,7 @@ namespace MedCore.Business.DTOs.Response;
 
 public class UsuarioResponse
 {
-    public Guid Codigo { get; set; }
+    public Guid Id { get; set; }
     public string Email { get; set; } = string.Empty;
     public bool Ativo { get; set; }
 }

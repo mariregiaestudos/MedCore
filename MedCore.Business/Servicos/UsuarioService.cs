@@ -1,9 +1,9 @@
-﻿
-using MedCore.Business.DTOs.Request;
+﻿using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
 using MedCore.Business.Validadores;
 using MedCore.Dominio;
+using MedCore.Dominio.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
@@ -21,30 +21,160 @@ public class UsuarioService(
 {
     private readonly PasswordHasher<Usuario> _passwordHasher = new();
 
-    public async Task<UsuarioResponse?> Cadastrar(UsuarioRequest request)
+    public async Task<UsuarioResponse?> Cadastrar(
+        UsuarioRequest request)
     {
         if (!await _validador.ValidarAsync(request))
             return null;
 
-        var email = request.Email!.Trim();
-
-        if (await _uow.Usuarios.ExisteEmail(email))
+        if (!Enum.IsDefined(typeof(TipoCadastro), request.TipoCadastro))
         {
             _coletorErros.AdicionarErro(
-                "Já existe um usuário cadastrado com esse e-mail.");
+                "Tipo de cadastro inválido.");
 
             return null;
         }
 
-        Usuario usuario = new Usuario(email, string.Empty);
+        var email = request.Email!.Trim().ToLowerInvariant();
+        var cpf = request.CPF!.Trim();
 
-        var senhaHash = _passwordHasher.HashPassword(
-            usuario,
-            request.Senha!);
+        var usuarioPorEmail = await _uow.Usuarios.Buscar(
+            new BuscarUsuarioRequest
+            {
+                Email = email
+            });
 
-        usuario.AtualizarSenha(senhaHash);
+        var usuarioPorCPF = await _uow.Usuarios.Buscar(
+            new BuscarUsuarioRequest
+            {
+                CPF = cpf
+            });
 
-        await _uow.Usuarios.Adicionar(usuario);
+        // O e-mail e o CPF não podem apontar para usuários diferentes.
+        if (usuarioPorEmail is not null &&
+            usuarioPorCPF is not null &&
+            usuarioPorEmail.Id != usuarioPorCPF.Id)
+        {
+            _coletorErros.AdicionarErro(
+                "E-mail e CPF pertencem a usuários diferentes.");
+
+            return null;
+        }
+
+        var usuario = usuarioPorEmail ?? usuarioPorCPF;
+
+        if (usuario is not null)
+        {
+            // Exige a senha da conta existente para adicionar outro papel.
+            var resultadoSenha =
+                _passwordHasher.VerifyHashedPassword(
+                    usuario,
+                    usuario.SenhaHash,
+                    request.Senha!);
+
+            if (resultadoSenha == PasswordVerificationResult.Failed)
+            {
+                _coletorErros.AdicionarErro(
+                    "Não foi possível validar o usuário existente.");
+
+                return null;
+            }
+
+            if (!usuario.Ativo)
+            {
+                _coletorErros.AdicionarErro(
+                    "Este usuário está inativo.");
+
+                return null;
+            }
+
+            // Não altera os dados pessoais nem a senha do usuário existente.
+        }
+        else
+        {
+            // Cria um usuário novo.
+            usuario = new Usuario(
+                request.Nome!,
+                email,
+                cpf,
+                request.DataNascimento,
+                "hash-temporario");
+
+            var senhaHash = _passwordHasher.HashPassword(
+                usuario,
+                request.Senha!);
+
+            usuario.AlterarSenhaHash(senhaHash);
+
+            await _uow.Usuarios.Criar(usuario);
+        }
+
+        switch (request.TipoCadastro)
+        {
+            case TipoCadastro.Paciente:
+                {
+                    var pacienteExistente =
+                        await _uow.Pacientes.BuscarPorCodigo(usuario.Id);
+
+                    if (pacienteExistente is not null)
+                    {
+                        _coletorErros.AdicionarErro(
+                            "Este usuário já possui cadastro de paciente.");
+
+                        return null;
+                    }
+
+                    var paciente = new Paciente(usuario.Id);
+
+                    await _uow.Pacientes.Criar(paciente);
+                    break;
+                }
+
+            case TipoCadastro.Medico:
+                {
+                    if (string.IsNullOrWhiteSpace(request.CRM) ||
+                        string.IsNullOrWhiteSpace(request.UF) ||
+                        string.IsNullOrWhiteSpace(request.Especialidade))
+                    {
+                        _coletorErros.AdicionarErro(
+                            "CRM, UF e especialidade são obrigatórios para médicos.");
+
+                        return null;
+                    }
+
+                    var crm = request.CRM.Trim();
+                    var uf = request.UF.Trim().ToUpperInvariant();
+
+                    if (await _uow.Medicos.ExisteCRM(crm, uf))
+                    {
+                        _coletorErros.AdicionarErro(
+                            "Já existe um médico cadastrado com este CRM e UF.");
+
+                        return null;
+                    }
+
+                    var medicoExistente =
+                        await _uow.Medicos.BuscarPorCodigo(usuario.Id);
+
+                    if (medicoExistente is not null)
+                    {
+                        _coletorErros.AdicionarErro(
+                            "Este usuário já possui cadastro de médico.");
+
+                        return null;
+                    }
+
+                    var medico = new Medico(
+                        usuario.Id,
+                        crm,
+                        uf,
+                        request.Especialidade);
+
+                    await _uow.Medicos.Criar(medico);
+                    break;
+                }
+        }
+
         await _uow.Confirmar();
 
         return MapearParaResponse(usuario);
@@ -55,9 +185,12 @@ public class UsuarioService(
         if (!await _validador.ValidarAsync(request))
             return null;
 
-        var email = request.Email!.Trim();
+        var email = request.Email!.Trim().ToLowerInvariant();
 
-        var usuario = await _uow.Usuarios.BuscarPorEmail(email);
+        var usuario = await _uow.Usuarios.Buscar(new BuscarUsuarioRequest
+        {
+            Email = email
+        });
 
         if (usuario is null || !usuario.Ativo)
         {
@@ -67,9 +200,7 @@ public class UsuarioService(
             return null;
         }
 
-        var passwordHasher = new PasswordHasher<Usuario>();
-
-        var resultado = passwordHasher.VerifyHashedPassword(
+        var resultado = _passwordHasher.VerifyHashedPassword(
             usuario,
             usuario.SenhaHash,
             request.Senha!);
@@ -94,18 +225,18 @@ public class UsuarioService(
 
         var claims = new[]
         {
-        new Claim(
-            JwtRegisteredClaimNames.Sub,
-            usuario.Id.ToString()),
+            new Claim(
+                JwtRegisteredClaimNames.Sub,
+                usuario.Id.ToString()),
 
-        new Claim(
-            JwtRegisteredClaimNames.Email,
-            usuario.Email),
+            new Claim(
+                JwtRegisteredClaimNames.Email,
+                usuario.Email),
 
-        new Claim(
-            ClaimTypes.NameIdentifier,
-            usuario.Id.ToString())
-    };
+            new Claim(
+                ClaimTypes.NameIdentifier,
+                usuario.Id.ToString())
+        };
 
         var credenciais = new SigningCredentials(
             new SymmetricSecurityKey(
@@ -129,13 +260,14 @@ public class UsuarioService(
         };
     }
 
-
-    private static UsuarioResponse MapearParaResponse(Usuario usuario)
+    private static UsuarioResponse MapearParaResponse(
+        Usuario usuario)
     {
         return new UsuarioResponse
         {
-            Codigo = usuario.Id,
+            Id = usuario.Id,
             Email = usuario.Email,
-            Ativo = usuario.Ativo        };
+            Ativo = usuario.Ativo
+        };
     }
 }

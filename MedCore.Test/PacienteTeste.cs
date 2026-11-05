@@ -1,7 +1,4 @@
 ﻿using MedCore.Dominio;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MedCore.Test;
 
@@ -10,33 +7,36 @@ public class PacienteTeste
     [Fact]
     public void CriarPaciente_ComDadosValidos_DeveCriarPaciente()
     {
-        // Arrange
         var nome = "Maria Silva";
         var email = "maria@email.com";
+        var cpf = "52998224725";
+        var dataNascimento = new DateTime(1995, 5, 10);
 
-        // Act
-        var paciente = new Paciente(nome, email);
+        var paciente = new Paciente(
+            nome,
+            email,
+            cpf,
+            dataNascimento);
 
-        // Assert
         Assert.NotEqual(Guid.Empty, paciente.Id);
         Assert.Equal(nome, paciente.Nome);
         Assert.Equal(email, paciente.Email);
+        Assert.Equal(cpf, paciente.CPF);
+        Assert.Equal(dataNascimento, paciente.DataNascimento);
     }
 
     [Theory]
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public void CriarPaciente_SemNome_DeveLancarExcecao(
-        string? nome)
+    public void CriarPaciente_SemNome_DeveLancarExcecao(string? nome)
     {
-        // Arrange
-        var email = "maria@email.com";
+        var acao = () => new Paciente(
+            nome!,
+            "maria@email.com",
+            "52998224725",
+            new DateTime(1995, 5, 10));
 
-        // Act
-        var acao = () => new Paciente(nome!, email);
-
-        // Assert
         Assert.Throws<ArgumentException>(acao);
     }
 
@@ -44,31 +44,43 @@ public class PacienteTeste
     [InlineData("")]
     [InlineData(" ")]
     [InlineData(null)]
-    public void CriarPaciente_SemEmail_DeveLancarExcecao(
-        string? email)
+    public void CriarPaciente_SemEmail_DeveLancarExcecao(string? email)
     {
-        // Arrange
-        var nome = "Maria Silva";
+        var acao = () => new Paciente(
+            "Maria Silva",
+            email!,
+            "52998224725",
+            new DateTime(1995, 5, 10));
 
-        // Act
-        var acao = () => new Paciente(nome, email!);
+        Assert.Throws<ArgumentException>(acao);
+    }
 
-        // Assert
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData(null)]
+    public void CriarPaciente_SemCpf_DeveLancarExcecao(string? cpf)
+    {
+        var acao = () => new Paciente(
+            "Maria Silva",
+            "maria@email.com",
+            cpf!,
+            new DateTime(1995, 5, 10));
+
         Assert.Throws<ArgumentException>(acao);
     }
 
     [Fact]
     public void CriarPaciente_ComEspacosNasExtremidades_DeveRemoverEspacos()
     {
-        // Arrange
-        var nome = " Maria Silva ";
-        var email = " maria@email.com ";
+        var paciente = new Paciente(
+            " Maria Silva ",
+            " maria@email.com ",
+            " 52998224725 ",
+            new DateTime(1995, 5, 10));
 
-        // Act
-        var paciente = new Paciente(nome, email);
-
-        // Assert
         Assert.Equal("Maria Silva", paciente.Nome);
         Assert.Equal("maria@email.com", paciente.Email);
+        Assert.Equal("52998224725", paciente.CPF);
     }
 }

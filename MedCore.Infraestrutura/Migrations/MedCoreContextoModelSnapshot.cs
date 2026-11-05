@@ -22,6 +22,75 @@ namespace MedCore.Infraestrutura.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("MedCore.Dominio.Consulta", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("DataHora")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DuracaoMinutos")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MedicoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PacienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicoId", "DataHora");
+
+                    b.HasIndex("PacienteId", "DataHora");
+
+                    b.ToTable("Consultas", (string)null);
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Medico", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Ativo")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("CRM")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<string>("Especialidade")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nome")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("UF")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CRM", "UF")
+                        .IsUnique();
+
+                    b.ToTable("Medicos", (string)null);
+                });
+
             modelBuilder.Entity("MedCore.Dominio.Paciente", b =>
                 {
                     b.Property<Guid>("Id")
@@ -31,22 +100,30 @@ namespace MedCore.Infraestrutura.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("bit");
 
+                    b.Property<string>("CPF")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.Property<DateTime>("DataNascimento")
+                        .HasColumnType("date");
+
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid?>("IdUsuario")
-                        .HasColumnType("uniqueidentifier");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.Property<string>("Nome")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("IdUsuario");
+                    b.HasIndex("CPF")
+                        .IsUnique();
 
-                    b.ToTable("Pacientes");
+                    b.ToTable("Pacientes", (string)null);
                 });
 
             modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
@@ -60,28 +137,65 @@ namespace MedCore.Infraestrutura.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid?>("PacienteId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Perfil")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("SenhaHash")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.HasKey("Id");
 
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Usuario", (string)null);
+                    b.HasIndex("PacienteId")
+                        .IsUnique()
+                        .HasFilter("[PacienteId] IS NOT NULL");
+
+                    b.ToTable("Usuarios", (string)null);
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Consulta", b =>
+                {
+                    b.HasOne("MedCore.Dominio.Medico", "Medico")
+                        .WithMany()
+                        .HasForeignKey("MedicoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("MedCore.Dominio.Paciente", "Paciente")
+                        .WithMany()
+                        .HasForeignKey("PacienteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Medico");
+
+                    b.Navigation("Paciente");
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
+                {
+                    b.HasOne("MedCore.Dominio.Paciente", "Paciente")
+                        .WithOne("Usuario")
+                        .HasForeignKey("MedCore.Dominio.Usuario", "PacienteId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Paciente");
                 });
 
             modelBuilder.Entity("MedCore.Dominio.Paciente", b =>
                 {
-                    b.HasOne("MedCore.Dominio.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("IdUsuario")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.Navigation("Usuario");
                 });
 #pragma warning restore 612, 618

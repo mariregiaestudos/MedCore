@@ -1,8 +1,5 @@
 ﻿using MedCore.Dominio;
 using MedCore.Dominio.Enums;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MedCore.Test;
 
@@ -11,108 +8,88 @@ public class ConsultaTeste
     [Fact]
     public void CriarConsulta_ComDadosValidos_DeveAgendarConsulta()
     {
-        // Arrange
-        var pacienteCodigo = Guid.NewGuid();
-        var medicoCodigo = Guid.NewGuid();
+        var pacienteId = Guid.NewGuid();
+        var medicoId = Guid.NewGuid();
         var dataHora = DateTime.Now.AddDays(1);
+        var duracaoMinutos = 30;
 
-        // Act
         var consulta = new Consulta(
-            pacienteCodigo,
-            medicoCodigo,
-            dataHora);
+            pacienteId,
+            medicoId,
+            dataHora,
+            duracaoMinutos);
 
-        // Assert
-        Assert.NotEqual(Guid.Empty, consulta.Codigo);
-        Assert.Equal(pacienteCodigo, consulta.PacienteCodigo);
-        Assert.Equal(medicoCodigo, consulta.MedicoCodigo);
+        Assert.NotEqual(Guid.Empty, consulta.Id);
+        Assert.Equal(pacienteId, consulta.PacienteId);
+        Assert.Equal(medicoId, consulta.MedicoId);
         Assert.Equal(dataHora, consulta.DataHora);
+        Assert.Equal(duracaoMinutos, consulta.DuracaoMinutos);
         Assert.Equal(StatusConsulta.Agendada, consulta.Status);
     }
 
     [Fact]
     public void CriarConsulta_ComPacienteVazio_DeveLancarExcecao()
     {
-        // Arrange
-        var medicoCodigo = Guid.NewGuid();
-        var dataHora = DateTime.Now.AddDays(1);
-
-        // Act
         var acao = () => new Consulta(
             Guid.Empty,
-            medicoCodigo,
-            dataHora);
+            Guid.NewGuid(),
+            DateTime.Now.AddDays(1),
+            30);
 
-        // Assert
         Assert.Throws<ArgumentException>(acao);
     }
 
     [Fact]
     public void CriarConsulta_ComMedicoVazio_DeveLancarExcecao()
     {
-        // Arrange
-        var pacienteCodigo = Guid.NewGuid();
-        var dataHora = DateTime.Now.AddDays(1);
-
-        // Act
         var acao = () => new Consulta(
-            pacienteCodigo,
+            Guid.NewGuid(),
             Guid.Empty,
-            dataHora);
+            DateTime.Now.AddDays(1),
+            30);
 
-        // Assert
         Assert.Throws<ArgumentException>(acao);
     }
 
     [Fact]
     public void CriarConsulta_ComDataPassada_DeveLancarExcecao()
     {
-        // Arrange
-        var pacienteCodigo = Guid.NewGuid();
-        var medicoCodigo = Guid.NewGuid();
-        var dataHora = DateTime.Now.AddDays(-1);
-
-        // Act
         var acao = () => new Consulta(
-            pacienteCodigo,
-            medicoCodigo,
-            dataHora);
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            DateTime.Now.AddDays(-1),
+            30);
 
-        // Assert
         Assert.Throws<ArgumentException>(acao);
     }
 
     [Fact]
     public void CancelarConsulta_Agendada_DeveAlterarStatus()
     {
-        // Arrange
         var consulta = new Consulta(
             Guid.NewGuid(),
             Guid.NewGuid(),
-            DateTime.Now.AddDays(1));
+            DateTime.Now.AddDays(1),
+            30);
 
-        // Act
         consulta.Cancelar();
 
-        // Assert
         Assert.Equal(StatusConsulta.Cancelada, consulta.Status);
     }
 
     [Fact]
     public void CancelarConsulta_JaCancelada_DeveLancarExcecao()
     {
-        // Arrange
         var consulta = new Consulta(
             Guid.NewGuid(),
             Guid.NewGuid(),
-            DateTime.Now.AddDays(1));
+            DateTime.Now.AddDays(1),
+            30);
 
         consulta.Cancelar();
 
-        // Act
         var acao = () => consulta.Cancelar();
 
-        // Assert
         Assert.Throws<InvalidOperationException>(acao);
     }
 }
