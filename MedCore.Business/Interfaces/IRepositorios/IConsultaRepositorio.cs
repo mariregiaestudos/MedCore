@@ -1,4 +1,5 @@
-﻿using MedCore.Dominio;
+﻿using MedCore.Business.DTOs.Request;
+using MedCore.Dominio;
 
 namespace MedCore.Business.Interfaces.IRepositorios;
 
@@ -15,7 +16,7 @@ public interface IConsultaRepositorio
 
     Task<Consulta?> BuscarPorCodigo(Guid codigo);
 
-    Task<List<Consulta>> Buscar();
+    Task<List<Consulta>> Buscar(BuscarConsultaRequest filtros);
 
     Task Atualizar(Consulta consulta);
 }

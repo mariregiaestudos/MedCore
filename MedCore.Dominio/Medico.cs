@@ -1,4 +1,5 @@
-﻿namespace MedCore.Dominio;
+﻿
+namespace MedCore.Dominio;
 
 public class Medico
 {
@@ -41,15 +42,16 @@ public class Medico
         especialidade = especialidade?.Trim() ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(crm))
-            throw new ArgumentException("CRM obrigatório.", nameof(crm));
+            throw new ArgumentException(
+                "CRM obrigatório.", nameof(crm));
 
         if (uf.Length != 2)
-            throw new ArgumentException("UF inválida.", nameof(uf));
+            throw new ArgumentException(
+                "UF inválida.", nameof(uf));
 
         if (string.IsNullOrWhiteSpace(especialidade))
             throw new ArgumentException(
-                "Especialidade obrigatória.",
-                nameof(especialidade));
+                "Especialidade obrigatória.", nameof(especialidade));
 
         CRM = crm;
         UF = uf;

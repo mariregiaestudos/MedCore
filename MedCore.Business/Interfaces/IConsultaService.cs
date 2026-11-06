@@ -12,7 +12,7 @@ public interface IConsultaService
 
     Task<ConsultaResponse?> BuscarPorCodigo(Guid codigo);
 
-    Task<List<ConsultaResponse>> Buscar();
+    Task<List<ConsultaResponse>> Buscar(BuscarConsultaRequest filtros);
 
     Task<ConsultaResponse?> Reagendar(
         Guid codigo,

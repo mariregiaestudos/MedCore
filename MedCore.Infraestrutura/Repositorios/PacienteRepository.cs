@@ -1,5 +1,6 @@
-﻿using MedCore.Business.DTOs.Request;
-using MedCore.Business.Interfaces;
+﻿
+using MedCore.Business.DTOs.Request;
+using MedCore.Business.Interfaces.IRepositorios;
 using MedCore.Dominio;
 using MedCore.Infraestrutura.Contexto;
 using Microsoft.EntityFrameworkCore;
@@ -17,7 +18,14 @@ public class PacienteRepository(
     public async Task<Paciente?> BuscarPorCodigo(Guid id)
     {
         return await _contexto.Pacientes
+            .Include(p => p.Usuario)
             .FirstOrDefaultAsync(p => p.Id == id);
+    }
+
+    public async Task<Paciente?> BuscarPorUsuarioId(Guid usuarioId)
+    {
+        return await _contexto.Pacientes
+            .FirstOrDefaultAsync(p => p.UsuarioId == usuarioId);
     }
 
     public async Task<List<Paciente>> Buscar(
@@ -25,6 +33,7 @@ public class PacienteRepository(
     {
         var consulta = _contexto.Pacientes
             .AsNoTracking()
+            .Include(p => p.Usuario)
             .AsQueryable();
 
         if (filtros.Ativo.HasValue)
@@ -38,7 +47,7 @@ public class PacienteRepository(
             var nome = filtros.Nome.Trim();
 
             consulta = consulta.Where(
-                p => p.Nome.Contains(nome));
+                p => p.Usuario.Nome.Contains(nome));
         }
 
         if (!string.IsNullOrWhiteSpace(filtros.Email))
@@ -46,7 +55,7 @@ public class PacienteRepository(
             var email = filtros.Email.Trim().ToLowerInvariant();
 
             consulta = consulta.Where(
-                p => p.Email == email);
+                p => p.Usuario.Email == email);
         }
 
         return await consulta.ToListAsync();
@@ -55,14 +64,7 @@ public class PacienteRepository(
     public Task Atualizar(Paciente paciente)
     {
         _contexto.Pacientes.Update(paciente);
+
         return Task.CompletedTask;
-    }
-
-    public async Task<bool> ExisteEmail(string email)
-    {
-        email = email.Trim().ToLowerInvariant();
-
-        return await _contexto.Pacientes
-            .AnyAsync(p => p.Email == email);
     }
 }

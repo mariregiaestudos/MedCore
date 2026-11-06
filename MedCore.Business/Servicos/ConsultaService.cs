@@ -16,7 +16,13 @@ public class ConsultaService(
     {
         var paciente = await _uow.Pacientes.BuscarPorCodigo(
             request.PacienteId);
+        if (!paciente.Ativo)
+        {
+            _coletorErros.AdicionarErro(
+                "Não é possível agendar uma consulta para um paciente inativo.");
 
+            return null;
+        }
         if (paciente is null)
         {
             _coletorErros.AdicionarErro("Paciente não encontrado.");
@@ -29,6 +35,13 @@ public class ConsultaService(
         if (medico is null)
         {
             _coletorErros.AdicionarErro("Médico não encontrado.");
+            return null;
+        }
+        if (!medico.Ativo)
+        {
+            _coletorErros.AdicionarErro(
+                "Não é possível agendar uma consulta com um médico inativo.");
+
             return null;
         }
 
@@ -90,22 +103,11 @@ public class ConsultaService(
     public async Task<List<ConsultaResponse>> Buscar(
         BuscarConsultaRequest filtros)
     {
-        var consultas = await _uow.Consultas.Buscar();
+        var consultas = await _uow.Consultas.Buscar(filtros);
 
         return consultas
-            .Where(c =>
-                (!filtros.PacienteId.HasValue ||
-                 c.PacienteId == filtros.PacienteId) &&
-                (!filtros.MedicoId.HasValue ||
-                 c.MedicoId == filtros.MedicoId) &&
-                (!filtros.DataInicio.HasValue ||
-                 c.DataHora >= filtros.DataInicio) &&
-                (!filtros.DataFim.HasValue ||
-                 c.DataHora <= filtros.DataFim) &&
-                (!filtros.Status.HasValue ||
-                 c.Status == filtros.Status))
             .Select(MapearParaResponse)
-            .ToList();
+            .ToList();  
     }
 
     public async Task<ConsultaResponse?> Reagendar(
@@ -113,6 +115,21 @@ public class ConsultaService(
         ReagendarConsultaRequest request)
     {
         var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
+        if (!consulta.Paciente.Ativo)
+        {
+            _coletorErros.AdicionarErro(
+                "Não é possível reagendar uma consulta para um paciente inativo.");
+
+            return null;
+        }
+
+        if (!consulta.Medico.Ativo)
+        {
+            _coletorErros.AdicionarErro(
+                "Não é possível reagendar uma consulta com um médico inativo.");
+
+            return null;
+        }
 
         if (consulta is null)
         {

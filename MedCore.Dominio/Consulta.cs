@@ -91,7 +91,10 @@ public class Consulta
             throw new InvalidOperationException(
                 "Esta consulta não pode ser reagendada.");
         }
-
+        if (novaDataHora <= DateTime.Now)
+            throw new ArgumentException(
+                "A nova data da consulta deve ser futura.",
+                nameof(novaDataHora));
         if (novaDuracaoMinutos <= 0)
             throw new ArgumentException(
                 "Duração deve ser maior que zero.");

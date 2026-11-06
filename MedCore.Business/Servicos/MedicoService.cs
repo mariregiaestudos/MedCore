@@ -1,10 +1,8 @@
-﻿using MedCore.Business.DTOs.Request;
+﻿
+using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
 using MedCore.Dominio;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace MedCore.Business.Servicos;
 
@@ -12,33 +10,6 @@ public class MedicoService(
     IUnityOfWork _uow,
     IColetorErros _coletorErros) : IMedicoService
 {
-    public async Task<MedicoResponse?> Criar(MedicoRequest request)
-    {
-        if (!Validar(request))
-            return null;
-
-        var crm = request.CRM!.Trim();
-        var uf = request.UF!.Trim().ToUpperInvariant();
-
-        if (await _uow.Medicos.ExisteCRM(crm, uf))
-        {
-            _coletorErros.AdicionarErro(
-                "Já existe um médico cadastrado com esse CRM e UF.");
-            return null;
-        }
-
-        var medico = new Medico(
-            request.Nome!.Trim(),
-            crm,
-            uf,
-            request.Especialidade!.Trim());
-
-        await _uow.Medicos.Criar(medico);
-        await _uow.Confirmar();
-
-        return MapearParaResponse(medico);
-    }
-
     public async Task<MedicoResponse?> BuscarPorCodigo(Guid codigo)
     {
         var medico = await _uow.Medicos.BuscarPorCodigo(codigo);
@@ -57,14 +28,16 @@ public class MedicoService(
     {
         var medicos = await _uow.Medicos.Buscar(filtros);
 
-        return medicos.Select(MapearParaResponse).ToList();
+        return medicos
+            .Select(MapearParaResponse)
+            .ToList();
     }
 
     public async Task<MedicoResponse?> Atualizar(
         Guid codigo,
         MedicoRequest request)
     {
-        if (!Validar(request))
+        if (!ValidarDadosMedicos(request))
             return null;
 
         var medico = await _uow.Medicos.BuscarPorCodigo(codigo);
@@ -77,20 +50,19 @@ public class MedicoService(
 
         var crm = request.CRM!.Trim();
         var uf = request.UF!.Trim().ToUpperInvariant();
+        var especialidade = request.Especialidade!.Trim();
 
+        // Verifica se outro médico já utiliza o CRM e a UF.
         if ((medico.CRM != crm || medico.UF != uf) &&
             await _uow.Medicos.ExisteCRM(crm, uf))
         {
             _coletorErros.AdicionarErro(
                 "Já existe outro médico cadastrado com esse CRM e UF.");
+
             return null;
         }
 
-        medico.AlterarDados(
-            request.Nome!.Trim(),
-            crm,
-            uf,
-            request.Especialidade!.Trim());
+        medico.AlterarDados(crm, uf, especialidade);
 
         await _uow.Medicos.Atualizar(medico);
         await _uow.Confirmar();
@@ -116,22 +88,25 @@ public class MedicoService(
         return true;
     }
 
-    private bool Validar(MedicoRequest request)
+    private bool ValidarDadosMedicos(MedicoRequest request)
     {
-        if (string.IsNullOrWhiteSpace(request.Nome) ||
-            string.IsNullOrWhiteSpace(request.CRM) ||
+        if (string.IsNullOrWhiteSpace(request.CRM) ||
             string.IsNullOrWhiteSpace(request.UF) ||
             string.IsNullOrWhiteSpace(request.Especialidade))
         {
             _coletorErros.AdicionarErro(
-                "Nome, CRM, UF e especialidade são obrigatórios.");
+                "CRM, UF e especialidade são obrigatórios.");
+
             return false;
         }
 
-        if (request.UF.Trim().Length != 2)
+        var uf = request.UF.Trim();
+
+        if (uf.Length != 2 || !uf.All(char.IsLetter))
         {
             _coletorErros.AdicionarErro(
                 "A UF deve conter exatamente duas letras.");
+
             return false;
         }
 
@@ -143,7 +118,7 @@ public class MedicoService(
         return new MedicoResponse
         {
             Id = medico.Id,
-            Nome = medico.Nome,
+            Nome = medico.Usuario.Nome,
             CRM = medico.CRM,
             UF = medico.UF,
             Especialidade = medico.Especialidade

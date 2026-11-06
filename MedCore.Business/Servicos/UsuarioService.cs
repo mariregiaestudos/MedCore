@@ -1,4 +1,5 @@
-﻿using MedCore.Business.DTOs.Request;
+﻿
+using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
 using MedCore.Business.Validadores;
@@ -38,19 +39,14 @@ public class UsuarioService(
         var email = request.Email!.Trim().ToLowerInvariant();
         var cpf = request.CPF!.Trim();
 
+        // Busca usuários existentes pelo e-mail e pelo CPF.
         var usuarioPorEmail = await _uow.Usuarios.Buscar(
-            new BuscarUsuarioRequest
-            {
-                Email = email
-            });
+            new BuscarUsuarioRequest { Email = email });
 
         var usuarioPorCPF = await _uow.Usuarios.Buscar(
-            new BuscarUsuarioRequest
-            {
-                CPF = cpf
-            });
+            new BuscarUsuarioRequest { CPF = cpf });
 
-        // O e-mail e o CPF não podem apontar para usuários diferentes.
+        // E-mail e CPF não podem pertencer a usuários diferentes.
         if (usuarioPorEmail is not null &&
             usuarioPorCPF is not null &&
             usuarioPorEmail.Id != usuarioPorCPF.Id)
@@ -61,11 +57,21 @@ public class UsuarioService(
             return null;
         }
 
-        var usuario = usuarioPorEmail ?? usuarioPorCPF;
+        // Se o e-mail existe, mas o CPF não, não associamos a conta.
+        if (usuarioPorEmail is not null &&
+            usuarioPorCPF is null)
+        {
+            _coletorErros.AdicionarErro(
+                "O e-mail informado já está cadastrado.");
 
+            return null;
+        }
+
+        var usuario = usuarioPorCPF;
+
+        // Valida a conta existente.
         if (usuario is not null)
         {
-            // Exige a senha da conta existente para adicionar outro papel.
             var resultadoSenha =
                 _passwordHasher.VerifyHashedPassword(
                     usuario,
@@ -88,45 +94,28 @@ public class UsuarioService(
                 return null;
             }
 
-            // Não altera os dados pessoais nem a senha do usuário existente.
-        }
-        else
-        {
-            // Cria um usuário novo.
-            usuario = new Usuario(
-                request.Nome!,
-                email,
-                cpf,
-                request.DataNascimento,
-                "hash-temporario");
-
-            var senhaHash = _passwordHasher.HashPassword(
-                usuario,
-                request.Senha!);
-
-            usuario.AlterarSenhaHash(senhaHash);
-
-            await _uow.Usuarios.Criar(usuario);
+            // Não altera os dados pessoais nem a senha da conta existente.
         }
 
+        // Valida o perfil antes de adicionar qualquer entidade ao contexto.
         switch (request.TipoCadastro)
         {
             case TipoCadastro.Paciente:
                 {
-                    var pacienteExistente =
-                        await _uow.Pacientes.BuscarPorCodigo(usuario.Id);
-
-                    if (pacienteExistente is not null)
+                    if (usuario is not null)
                     {
-                        _coletorErros.AdicionarErro(
-                            "Este usuário já possui cadastro de paciente.");
+                        var pacienteExistente =
+                            await _uow.Pacientes.BuscarPorUsuarioId(usuario.Id);
 
-                        return null;
+                        if (pacienteExistente is not null)
+                        {
+                            _coletorErros.AdicionarErro(
+                                "Este usuário já possui cadastro de paciente.");
+
+                            return null;
+                        }
                     }
 
-                    var paciente = new Paciente(usuario.Id);
-
-                    await _uow.Pacientes.Criar(paciente);
                     break;
                 }
 
@@ -145,6 +134,14 @@ public class UsuarioService(
                     var crm = request.CRM.Trim();
                     var uf = request.UF.Trim().ToUpperInvariant();
 
+                    if (uf.Length != 2)
+                    {
+                        _coletorErros.AdicionarErro(
+                            "UF inválida.");
+
+                        return null;
+                    }
+
                     if (await _uow.Medicos.ExisteCRM(crm, uf))
                     {
                         _coletorErros.AdicionarErro(
@@ -153,22 +150,61 @@ public class UsuarioService(
                         return null;
                     }
 
-                    var medicoExistente =
-                        await _uow.Medicos.BuscarPorCodigo(usuario.Id);
-
-                    if (medicoExistente is not null)
+                    if (usuario is not null)
                     {
-                        _coletorErros.AdicionarErro(
-                            "Este usuário já possui cadastro de médico.");
+                        var medicoExistente =
+                            await _uow.Medicos.BuscarPorUsuarioId(usuario.Id);
 
-                        return null;
+                        if (medicoExistente is not null)
+                        {
+                            _coletorErros.AdicionarErro(
+                                "Este usuário já possui cadastro de médico.");
+
+                            return null;
+                        }
                     }
 
+                    break;
+                }
+        }
+
+        // Se não existe usuário, cria a conta após todas as validações.
+        if (usuario is null)
+        {
+            usuario = new Usuario(
+                request.Nome!,
+                email,
+                cpf,
+                request.DataNascimento,
+                "hash-temporario");
+
+            var senhaHash = _passwordHasher.HashPassword(
+                usuario,
+                request.Senha!);
+
+            usuario.AlterarSenhaHash(senhaHash);
+
+            await _uow.Usuarios.Criar(usuario);
+        }
+
+        // Cria o perfil correspondente ao tipo de cadastro.
+        switch (request.TipoCadastro)
+        {
+            case TipoCadastro.Paciente:
+                {
+                    var paciente = new Paciente(usuario.Id);
+
+                    await _uow.Pacientes.Criar(paciente);
+                    break;
+                }
+
+            case TipoCadastro.Medico:
+                {
                     var medico = new Medico(
                         usuario.Id,
-                        crm,
-                        uf,
-                        request.Especialidade);
+                        request.CRM!.Trim(),
+                        request.UF!.Trim().ToUpperInvariant(),
+                        request.Especialidade!.Trim());
 
                     await _uow.Medicos.Criar(medico);
                     break;
@@ -187,10 +223,11 @@ public class UsuarioService(
 
         var email = request.Email!.Trim().ToLowerInvariant();
 
-        var usuario = await _uow.Usuarios.Buscar(new BuscarUsuarioRequest
-        {
-            Email = email
-        });
+        var usuario = await _uow.Usuarios.Buscar(
+            new BuscarUsuarioRequest
+            {
+                Email = email
+            });
 
         if (usuario is null || !usuario.Ativo)
         {

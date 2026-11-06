@@ -1,17 +1,18 @@
-﻿using MedCore.Business.DTOs.Request;
-using MedCore.Business.DTOs.Response;
+﻿
+using MedCore.Business.DTOs.Request;
 using MedCore.Dominio;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace MedCore.Business.Interfaces;
+namespace MedCore.Business.Interfaces.IRepositorios;
 
 public interface IPacienteRepositorio
 {
     Task Criar(Paciente paciente);
+
     Task<Paciente?> BuscarPorCodigo(Guid id);
+
+    Task<Paciente?> BuscarPorUsuarioId(Guid usuarioId);
+
     Task<List<Paciente>> Buscar(BuscarPacienteRequest filtros);
+
     Task Atualizar(Paciente paciente);
-    Task<bool> ExisteEmail(string email);
 }

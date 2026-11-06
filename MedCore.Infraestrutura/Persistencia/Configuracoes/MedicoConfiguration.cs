@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace MedCore.Infraestrutura.Configuracoes;
+namespace MedCore.Infraestrutura.Persistencia.Configuracoes;
 
 public class MedicoConfiguracao
     : IEntityTypeConfiguration<Medico>
