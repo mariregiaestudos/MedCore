@@ -35,9 +35,26 @@ public class ConsultaRepositorio(MedCoreContexto _context)
             .FirstOrDefaultAsync(c => c.Id == codigo);
     }
 
-    public async Task<List<Consulta>> Buscar()
+    public async Task<List<Consulta>> Buscar(BuscarConsultaRequest filtros)
     {
-        return await _context.Consultas.ToListAsync();
+        var query = _context.Consultas.AsQueryable();
+
+        if (filtros.PacienteId != Guid.Empty)
+        {
+            query = query.Where(c => c.PacienteId == filtros.PacienteId);
+        }
+
+        if (filtros.MedicoId != Guid.Empty)
+        {
+            query = query.Where(c => c.MedicoId == filtros.MedicoId);
+        }
+
+        if (filtros.Status != null)
+        {
+            query = query.Where(c => c.Status == filtros.Status);
+        }
+
+        return await query.ToListAsync();
     }
 
     public Task Atualizar(Consulta consulta)
