@@ -29,6 +29,98 @@ public class ConsultaServiceTests
         Assert.Equal(1, fixture.Uow.Confirmacoes);
     }
 
+    [Theory]
+    [InlineData(4, false)]
+    [InlineData(5, true)]
+    public async Task Agendar_RespeitaIntervaloMinimoEntreConsultas(
+        int minutosDeIntervalo,
+        bool deveAgendar)
+    {
+        var fixture = new ServiceTestFixture();
+        var paciente = CriarPaciente(fixture);
+        var medico = CriarMedico(fixture);
+        var consultaExistente = new Consulta(
+            paciente.Id,
+            medico.Id,
+            DateTime.Now.AddDays(1),
+            30);
+        await fixture.Uow.Consultas.Criar(consultaExistente);
+        var service = new ConsultaService(fixture.Uow, fixture.Validator);
+
+        var resultado = await service.Agendar(paciente.UsuarioId, new()
+        {
+            MedicoId = medico.Id,
+            DataHora = consultaExistente.DataHoraFim.AddMinutes(minutosDeIntervalo),
+            DuracaoMinutos = 30
+        });
+
+        Assert.Equal(deveAgendar, resultado is not null);
+        Assert.Equal(deveAgendar ? 1 : 0, fixture.Uow.Confirmacoes);
+    }
+
+    [Fact]
+    public async Task Agendar_RejeitaIntervaloMenorQueCincoMinutosAntesDaConsultaExistente()
+    {
+        var fixture = new ServiceTestFixture();
+        var paciente = CriarPaciente(fixture);
+        var medico = CriarMedico(fixture);
+        var dataHora = DateTime.Now.AddDays(1);
+        await fixture.Uow.Consultas.Criar(new Consulta(
+            paciente.Id,
+            medico.Id,
+            dataHora.AddMinutes(34),
+            30));
+        var service = new ConsultaService(fixture.Uow, fixture.Validator);
+
+        var resultado = await service.Agendar(paciente.UsuarioId, new()
+        {
+            MedicoId = medico.Id,
+            DataHora = dataHora,
+            DuracaoMinutos = 30
+        });
+
+        Assert.Null(resultado);
+        Assert.Equal(0, fixture.Uow.Confirmacoes);
+    }
+
+    [Theory]
+    [InlineData("medico")]
+    [InlineData("data")]
+    [InlineData("duracao")]
+    public async Task Agendar_QuandoCampoObrigatorioEstaAusente_Rejeita(string campo)
+    {
+        var fixture = new ServiceTestFixture();
+        var paciente = CriarPaciente(fixture);
+        var medico = CriarMedico(fixture);
+        var request = new ConsultaRequest
+        {
+            MedicoId = medico.Id,
+            DataHora = DateTime.Now.AddDays(1),
+            DuracaoMinutos = 30
+        };
+
+        switch (campo)
+        {
+            case "medico":
+                request.MedicoId = null;
+                break;
+            case "data":
+                request.DataHora = null;
+                break;
+            case "duracao":
+                request.DuracaoMinutos = null;
+                break;
+        }
+
+        var service = new ConsultaService(fixture.Uow, fixture.Validator);
+
+        var resultado = await service.Agendar(paciente.UsuarioId, request);
+
+        Assert.Null(resultado);
+        Assert.Equal(0, fixture.Uow.Confirmacoes);
+        Assert.NotEmpty(fixture.Errors.GerarErros());
+    }
+
     [Fact]
     public async Task Agendar_QuandoPacienteEOMedicoSaoAMesmaConta_Rejeita()
     {

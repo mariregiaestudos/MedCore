@@ -10,6 +10,8 @@ namespace MedCore.Infraestrutura.Repositorios;
 public class ConsultaRepositorio(MedCoreContexto _context)
     : IConsultaRepositorio
 {
+    private const int IntervaloEntreConsultasMinutos = 5;
+
     public async Task<bool> ExisteConflitoAsync(
         Guid medicoId,
         Guid pacienteId,
@@ -21,8 +23,9 @@ public class ConsultaRepositorio(MedCoreContexto _context)
             c.Id != consultaIdIgnorada &&
             c.Status != StatusConsulta.Cancelada &&
             (c.MedicoId == medicoId || c.PacienteId == pacienteId) &&
-            dataHora < c.DataHoraFim &&
-            dataHoraFim > c.DataHora);
+            dataHora < c.DataHora.AddMinutes(
+                c.DuracaoMinutos + IntervaloEntreConsultasMinutos) &&
+            dataHoraFim.AddMinutes(IntervaloEntreConsultasMinutos) > c.DataHora);
     }
 
     public async Task Criar(Consulta consulta)

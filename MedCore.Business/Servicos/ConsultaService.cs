@@ -32,9 +32,9 @@ public class ConsultaService(
 
         var consulta = new Consulta(
             paciente.Id,
-            request.MedicoId,
-            request.DataHora,
-            request.DuracaoMinutos);
+            request.MedicoId!.Value,
+            request.DataHora!.Value,
+            request.DuracaoMinutos!.Value);
 
         await _uow.Consultas.Criar(consulta);
         await _uow.Confirmar();

@@ -9,8 +9,36 @@ public class AgendarConsultaValidator
 {
     public AgendarConsultaValidator(IUnityOfWork uow)
     {
+        RuleFor(request => request.Consulta.MedicoId)
+            .NotNull()
+            .WithMessage("O médico é obrigatório.")
+            .NotEqual(Guid.Empty)
+            .WithMessage("O médico é obrigatório.");
+
+        RuleFor(request => request.Consulta.DataHora)
+            .NotNull()
+            .WithMessage("A data da consulta é obrigatória.")
+            .GreaterThan(DateTime.Now)
+            .WithMessage("A data da consulta deve ser futura.");
+
+        RuleFor(request => request.Consulta.DuracaoMinutos)
+            .NotNull()
+            .WithMessage("A duração da consulta é obrigatória.")
+            .GreaterThan(0)
+            .WithMessage("A duração deve ser maior que zero.");
+
         RuleFor(request => request).CustomAsync(async (request, context, cancellationToken) =>
         {
+            if (request.Consulta.MedicoId is not Guid medicoId ||
+                medicoId == Guid.Empty ||
+                request.Consulta.DataHora is not DateTime dataHora ||
+                dataHora <= DateTime.Now ||
+                request.Consulta.DuracaoMinutos is not int duracaoMinutos ||
+                duracaoMinutos <= 0)
+            {
+                return;
+            }
+
             var paciente = await uow.Pacientes.BuscarPorUsuarioId(request.UsuarioId);
 
             if (paciente is null)
@@ -29,7 +57,7 @@ public class AgendarConsultaValidator
                     "Não é possível agendar uma consulta para um paciente inativo.");
             }
 
-            var medico = await uow.Medicos.BuscarPorCodigo(request.Consulta.MedicoId);
+            var medico = await uow.Medicos.BuscarPorCodigo(medicoId);
 
             if (medico is null)
             {
@@ -51,36 +79,19 @@ public class AgendarConsultaValidator
                     "Não é permitido agendar uma consulta com o próprio médico.");
             }
 
-            if (request.Consulta.DataHora <= DateTime.Now)
-            {
-                context.AddFailure(
-                    "Consulta.DataHora",
-                    "A data da consulta deve ser futura.");
-            }
-
-            if (request.Consulta.DuracaoMinutos <= 0)
-            {
-                context.AddFailure(
-                    "Consulta.DuracaoMinutos",
-                    "A duração deve ser maior que zero.");
-            }
-
             if (!paciente.Ativo ||
                 !medico.Ativo ||
-                paciente.UsuarioId == medico.UsuarioId ||
-                request.Consulta.DataHora <= DateTime.Now ||
-                request.Consulta.DuracaoMinutos <= 0)
+                paciente.UsuarioId == medico.UsuarioId)
             {
                 return;
             }
 
-            var dataHoraFim = request.Consulta.DataHora.AddMinutes(
-                request.Consulta.DuracaoMinutos);
+            var dataHoraFim = dataHora.AddMinutes(duracaoMinutos);
 
             var existeConflito = await uow.Consultas.ExisteConflitoAsync(
-                request.Consulta.MedicoId,
+                medicoId,
                 paciente.Id,
-                request.Consulta.DataHora,
+                dataHora,
                 dataHoraFim);
 
             if (existeConflito)

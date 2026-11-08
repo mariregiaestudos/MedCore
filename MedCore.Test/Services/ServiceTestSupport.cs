@@ -197,8 +197,8 @@ internal sealed class FakeConsultaRepositorio : IConsultaRepositorio
             consulta.Id != consultaIdIgnorada &&
             consulta.Status != StatusConsulta.Cancelada &&
             (consulta.MedicoId == medicoId || consulta.PacienteId == pacienteId) &&
-            dataHora < consulta.DataHoraFim &&
-            dataHoraFim > consulta.DataHora));
+            dataHora < consulta.DataHoraFim.AddMinutes(5) &&
+            dataHoraFim.AddMinutes(5) > consulta.DataHora));
 
     public Task Criar(Consulta consulta)
     {
