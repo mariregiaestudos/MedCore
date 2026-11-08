@@ -2,23 +2,23 @@
 using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
+using MedCore.Business.Validadores;
 using MedCore.Dominio;
 
 namespace MedCore.Business.Servicos;
 
 public class MedicoService(
     IUnityOfWork _uow,
-    IColetorErros _coletorErros) : IMedicoService
+    ValidadorService _validador) : IMedicoService
 {
     public async Task<MedicoResponse?> BuscarPorCodigo(Guid codigo)
     {
-        var medico = await _uow.Medicos.BuscarPorCodigo(codigo);
-
-        if (medico is null)
-        {
-            _coletorErros.AdicionarErro("Médico não encontrado.");
+        if (!await ValidarMedico(codigo, OperacaoMedico.Buscar))
             return null;
-        }
+
+        var medico = await _uow.Medicos.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "O médico validado não foi encontrado.");
 
         return MapearParaResponse(medico);
     }
@@ -35,34 +35,19 @@ public class MedicoService(
 
     public async Task<MedicoResponse?> Atualizar(
         Guid codigo,
-        MedicoRequest request)
+        AtualizarMedicoRequest request)
     {
-        if (!ValidarDadosMedicos(request))
+        if (!await ValidarMedico(codigo, OperacaoMedico.Atualizar, request))
             return null;
 
-        var medico = await _uow.Medicos.BuscarPorCodigo(codigo);
+        var medico = await _uow.Medicos.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "O médico validado não foi encontrado.");
 
-        if (medico is null)
-        {
-            _coletorErros.AdicionarErro("Médico não encontrado.");
-            return null;
-        }
-
-        var crm = request.CRM!.Trim();
-        var uf = request.UF!.Trim().ToUpperInvariant();
-        var especialidade = request.Especialidade!.Trim();
-
-        // Verifica se outro médico já utiliza o CRM e a UF.
-        if ((medico.CRM != crm || medico.UF != uf) &&
-            await _uow.Medicos.ExisteCRM(crm, uf))
-        {
-            _coletorErros.AdicionarErro(
-                "Já existe outro médico cadastrado com esse CRM e UF.");
-
-            return null;
-        }
-
-        medico.AlterarDados(crm, uf, especialidade);
+        medico.AlterarDados(
+            request.CRM!.Trim(),
+            request.UF!.Trim().ToUpperInvariant(),
+            request.Especialidade!.Trim());
 
         await _uow.Medicos.Atualizar(medico);
         await _uow.Confirmar();
@@ -72,13 +57,12 @@ public class MedicoService(
 
     public async Task<bool> Desativar(Guid codigo)
     {
-        var medico = await _uow.Medicos.BuscarPorCodigo(codigo);
-
-        if (medico is null)
-        {
-            _coletorErros.AdicionarErro("Médico não encontrado.");
+        if (!await ValidarMedico(codigo, OperacaoMedico.Desativar))
             return false;
-        }
+
+        var medico = await _uow.Medicos.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "O médico validado não foi encontrado.");
 
         medico.Desativar();
 
@@ -88,30 +72,16 @@ public class MedicoService(
         return true;
     }
 
-    private bool ValidarDadosMedicos(MedicoRequest request)
-    {
-        if (string.IsNullOrWhiteSpace(request.CRM) ||
-            string.IsNullOrWhiteSpace(request.UF) ||
-            string.IsNullOrWhiteSpace(request.Especialidade))
+    private Task<bool> ValidarMedico(
+        Guid codigo,
+        OperacaoMedico operacao,
+        AtualizarMedicoRequest? dados = null) =>
+        _validador.ValidarAsync(new ValidarMedicoRequest
         {
-            _coletorErros.AdicionarErro(
-                "CRM, UF e especialidade são obrigatórios.");
-
-            return false;
-        }
-
-        var uf = request.UF.Trim();
-
-        if (uf.Length != 2 || !uf.All(char.IsLetter))
-        {
-            _coletorErros.AdicionarErro(
-                "A UF deve conter exatamente duas letras.");
-
-            return false;
-        }
-
-        return true;
-    }
+            Codigo = codigo,
+            Operacao = operacao,
+            Dados = dados
+        });
 
     private static MedicoResponse MapearParaResponse(Medico medico)
     {
@@ -121,7 +91,8 @@ public class MedicoService(
             Nome = medico.Usuario.Nome,
             CRM = medico.CRM,
             UF = medico.UF,
-            Especialidade = medico.Especialidade
+            Especialidade = medico.Especialidade,
+            Ativo = medico.Ativo
         };
     }
 }

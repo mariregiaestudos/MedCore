@@ -82,6 +82,7 @@ public class Consulta
     }
 
     public void Reagendar(
+        Guid novoMedicoId,
         DateTime novaDataHora,
         int novaDuracaoMinutos)
     {
@@ -91,6 +92,9 @@ public class Consulta
             throw new InvalidOperationException(
                 "Esta consulta não pode ser reagendada.");
         }
+        if (novoMedicoId == Guid.Empty)
+            throw new ArgumentException("Médico inválido.", nameof(novoMedicoId));
+
         if (novaDataHora <= DateTime.Now)
             throw new ArgumentException(
                 "A nova data da consulta deve ser futura.",
@@ -99,6 +103,7 @@ public class Consulta
             throw new ArgumentException(
                 "Duração deve ser maior que zero.");
 
+        MedicoId = novoMedicoId;
         DataHora = novaDataHora;
         DuracaoMinutos = novaDuracaoMinutos;
         Status = StatusConsulta.Agendada;

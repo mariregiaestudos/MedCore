@@ -17,10 +17,20 @@ public class Medico
     protected Medico() { } // EF Core
 
     public Medico(
+        string crm,
+        string uf,
+        string especialidade)
+    {
+        AlterarDados(crm, uf, especialidade);
+        Ativo = true;
+    }
+
+    public Medico(
         Guid usuarioId,
         string crm,
         string uf,
         string especialidade)
+        : this(crm, uf, especialidade)
     {
         if (usuarioId == Guid.Empty)
             throw new ArgumentException(
@@ -28,8 +38,6 @@ public class Medico
                 nameof(usuarioId));
 
         UsuarioId = usuarioId;
-        AlterarDados(crm, uf, especialidade);
-        Ativo = true;
     }
 
     public void AlterarDados(

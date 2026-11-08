@@ -13,7 +13,7 @@ public interface IMedicoService
 
     Task<MedicoResponse?> Atualizar(
         Guid codigo,
-        MedicoRequest request);
+        AtualizarMedicoRequest request);
 
     Task<bool> Desativar(Guid codigo);
 }

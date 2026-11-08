@@ -1,11 +1,8 @@
-﻿
-namespace MedCore.Business.DTOs.Request;
+﻿namespace MedCore.Business.DTOs.Request;
 
-public class MedicoRequest
+public class MedicoRequest : UsuarioRequest
 {
     public string? CRM { get; set; }
-
     public string? UF { get; set; }
-
     public string? Especialidade { get; set; }
 }

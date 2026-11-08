@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace MedCore.Infraestrutura.Migrations
 {
     [DbContext(typeof(MedCoreContexto))]
-    [Migration("20261105015426_AtualizarEntidadesDDD")]
-    partial class AtualizarEntidadesDDD
+    [Migration("20261108180649_Inicial")]
+    partial class Inicial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -76,17 +76,18 @@ namespace MedCore.Infraestrutura.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
                     b.Property<string>("UF")
                         .IsRequired()
                         .HasMaxLength(2)
                         .HasColumnType("nvarchar(2)");
 
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("UsuarioId")
+                        .IsUnique();
 
                     b.HasIndex("CRM", "UF")
                         .IsUnique();
@@ -103,27 +104,12 @@ namespace MedCore.Infraestrutura.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("bit");
 
-                    b.Property<string>("CPF")
-                        .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
-
-                    b.Property<DateTime>("DataNascimento")
-                        .HasColumnType("date");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
-                    b.Property<string>("Nome")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CPF")
+                    b.HasIndex("UsuarioId")
                         .IsUnique();
 
                     b.ToTable("Pacientes", (string)null);
@@ -138,18 +124,23 @@ namespace MedCore.Infraestrutura.Migrations
                     b.Property<bool>("Ativo")
                         .HasColumnType("bit");
 
+                    b.Property<string>("CPF")
+                        .IsRequired()
+                        .HasMaxLength(14)
+                        .HasColumnType("nvarchar(14)");
+
+                    b.Property<DateTime>("DataNascimento")
+                        .HasColumnType("date");
+
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("Nome")
                         .IsRequired()
                         .HasMaxLength(150)
                         .HasColumnType("nvarchar(150)");
-
-                    b.Property<Guid?>("PacienteId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Perfil")
-                        .IsRequired()
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
 
                     b.Property<string>("SenhaHash")
                         .IsRequired()
@@ -158,12 +149,11 @@ namespace MedCore.Infraestrutura.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Email")
+                    b.HasIndex("CPF")
                         .IsUnique();
 
-                    b.HasIndex("PacienteId")
-                        .IsUnique()
-                        .HasFilter("[PacienteId] IS NOT NULL");
+                    b.HasIndex("Email")
+                        .IsUnique();
 
                     b.ToTable("Usuarios", (string)null);
                 });
@@ -187,19 +177,33 @@ namespace MedCore.Infraestrutura.Migrations
                     b.Navigation("Paciente");
                 });
 
-            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
+            modelBuilder.Entity("MedCore.Dominio.Medico", b =>
                 {
-                    b.HasOne("MedCore.Dominio.Paciente", "Paciente")
-                        .WithOne("Usuario")
-                        .HasForeignKey("MedCore.Dominio.Usuario", "PacienteId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                    b.HasOne("MedCore.Dominio.Usuario", "Usuario")
+                        .WithOne("Medico")
+                        .HasForeignKey("MedCore.Dominio.Medico", "UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
-                    b.Navigation("Paciente");
+                    b.Navigation("Usuario");
                 });
 
             modelBuilder.Entity("MedCore.Dominio.Paciente", b =>
                 {
+                    b.HasOne("MedCore.Dominio.Usuario", "Usuario")
+                        .WithOne("Paciente")
+                        .HasForeignKey("MedCore.Dominio.Paciente", "UsuarioId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Usuario");
+                });
+
+            modelBuilder.Entity("MedCore.Dominio.Usuario", b =>
+                {
+                    b.Navigation("Medico");
+
+                    b.Navigation("Paciente");
                 });
 #pragma warning restore 612, 618
         }

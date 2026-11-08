@@ -50,9 +50,15 @@ public class Usuario
                 "Data de nascimento inválida.",
                 nameof(dataNascimento));
 
+        var cpfNumerico = new string(
+            cpf.Where(char.IsAsciiDigit).ToArray());
+
+        if (string.IsNullOrWhiteSpace(cpfNumerico))
+            throw new ArgumentException("CPF obrigatório.", nameof(cpf));
+
         Nome = nome.Trim();
         Email = email.Trim().ToLowerInvariant();
-        CPF = cpf.Trim();
+        CPF = cpfNumerico;
         DataNascimento = dataNascimento.Date;
     }
 

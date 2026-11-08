@@ -7,7 +7,7 @@ using System.Text;
 
 namespace MedCore.Infraestrutura.UoW;
 
-public class UnityOfWork(MedCoreContexto _contexto, IUsuarioRepositorio _usuarioRepositorio, IPacienteRepositorio _pacienteRepositorio, IConsultaRepositorio _consultaRepositorio) : IUnityOfWork
+public class UnityOfWork(MedCoreContexto _contexto, IUsuarioRepositorio _usuarioRepositorio, IPacienteRepositorio _pacienteRepositorio, IConsultaRepositorio _consultaRepositorio, IMedicoRepositorio _medicoRepositorio) : IUnityOfWork
 {
     public IUsuarioRepositorio Usuarios => _usuarioRepositorio;
     public IPacienteRepositorio Pacientes => _pacienteRepositorio;

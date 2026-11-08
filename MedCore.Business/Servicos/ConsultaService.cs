@@ -1,6 +1,7 @@
 ﻿using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
+using MedCore.Business.Validadores;
 using MedCore.Dominio;
 using System;
 using System.Collections.Generic;
@@ -10,73 +11,27 @@ namespace MedCore.Business.Servicos;
 
 public class ConsultaService(
     IUnityOfWork _uow,
-    IColetorErros _coletorErros) : IConsultaService
+    ValidadorService _validador) : IConsultaService
 {
-    public async Task<ConsultaResponse?> Agendar(ConsultaRequest request)
+    public async Task<ConsultaResponse?> Agendar(
+        Guid usuarioId,
+        ConsultaRequest request)
     {
-        var paciente = await _uow.Pacientes.BuscarPorCodigo(
-            request.PacienteId);
-        if (!paciente.Ativo)
+        var validacao = new AgendarConsultaValidationRequest
         {
-            _coletorErros.AdicionarErro(
-                "Não é possível agendar uma consulta para um paciente inativo.");
+            UsuarioId = usuarioId,
+            Consulta = request
+        };
 
+        if (!await _validador.ValidarAsync(validacao))
             return null;
-        }
-        if (paciente is null)
-        {
-            _coletorErros.AdicionarErro("Paciente não encontrado.");
-            return null;
-        }
 
-        var medico = await _uow.Medicos.BuscarPorCodigo(
-            request.MedicoId);
-
-        if (medico is null)
-        {
-            _coletorErros.AdicionarErro("Médico não encontrado.");
-            return null;
-        }
-        if (!medico.Ativo)
-        {
-            _coletorErros.AdicionarErro(
-                "Não é possível agendar uma consulta com um médico inativo.");
-
-            return null;
-        }
-
-        if (request.DataHora <= DateTime.Now)
-        {
-            _coletorErros.AdicionarErro(
-                "A data da consulta deve ser futura.");
-            return null;
-        }
-
-        if (request.DuracaoMinutos <= 0)
-        {
-            _coletorErros.AdicionarErro(
-                "A duração deve ser maior que zero.");
-            return null;
-        }
-
-        var dataHoraFim = request.DataHora.AddMinutes(
-            request.DuracaoMinutos);
-
-        var existeConflito = await _uow.Consultas.ExisteConflitoAsync(
-            request.MedicoId,
-            request.PacienteId,
-            request.DataHora,
-            dataHoraFim);
-
-        if (existeConflito)
-        {
-            _coletorErros.AdicionarErro(
-                "Já existe uma consulta nesse horário para o médico ou paciente.");
-            return null;
-        }
+        var paciente = await _uow.Pacientes.BuscarPorUsuarioId(usuarioId)
+            ?? throw new InvalidOperationException(
+                "O perfil de paciente validado não foi encontrado.");
 
         var consulta = new Consulta(
-            request.PacienteId,
+            paciente.Id,
             request.MedicoId,
             request.DataHora,
             request.DuracaoMinutos);
@@ -87,98 +42,66 @@ public class ConsultaService(
         return MapearParaResponse(consulta);
     }
 
-    public async Task<ConsultaResponse?> BuscarPorCodigo(Guid codigo)
+    public async Task<ConsultaResponse?> BuscarPorCodigo(
+        Guid codigo,
+        Guid usuarioId)
     {
-        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
-
-        if (consulta is null)
-        {
-            _coletorErros.AdicionarErro("Consulta não encontrada.");
+        if (!await ValidarConsulta(codigo, usuarioId, OperacaoConsulta.Buscar))
             return null;
-        }
+
+        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "A consulta validada não foi encontrada.");
 
         return MapearParaResponse(consulta);
     }
 
     public async Task<List<ConsultaResponse>> Buscar(
-        BuscarConsultaRequest filtros)
+        BuscarConsultaRequest filtros,
+        Guid usuarioId)
     {
-        var consultas = await _uow.Consultas.Buscar(filtros);
+        if (!await ValidarConsulta(Guid.Empty, usuarioId, OperacaoConsulta.Listar))
+            return [];
 
-        return consultas
-            .Select(MapearParaResponse)
-            .ToList();  
+        var paciente = await _uow.Pacientes.BuscarPorUsuarioId(usuarioId)
+            ?? throw new InvalidOperationException(
+                "O perfil de paciente validado não foi encontrado.");
+
+        var consultas = await _uow.Consultas.Buscar(new BuscarConsultaRequest
+        {
+            PacienteId = paciente.Id,
+            MedicoId = filtros.MedicoId,
+            DataInicio = filtros.DataInicio,
+            DataFim = filtros.DataFim,
+            Status = filtros.Status
+        });
+
+        return consultas.Select(MapearParaResponse).ToList();
     }
 
     public async Task<ConsultaResponse?> Reagendar(
         Guid codigo,
+        Guid usuarioId,
         ReagendarConsultaRequest request)
     {
-        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
-        if (!consulta.Paciente.Ativo)
+        var validacao = new ReagendarConsultaValidationRequest
         {
-            _coletorErros.AdicionarErro(
-                "Não é possível reagendar uma consulta para um paciente inativo.");
+            Codigo = codigo,
+            UsuarioId = usuarioId,
+            Consulta = request
+        };
 
+        if (!await _validador.ValidarAsync(validacao))
             return null;
-        }
 
-        if (!consulta.Medico.Ativo)
-        {
-            _coletorErros.AdicionarErro(
-                "Não é possível reagendar uma consulta com um médico inativo.");
+        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "A consulta validada não foi encontrada.");
 
-            return null;
-        }
-
-        if (consulta is null)
-        {
-            _coletorErros.AdicionarErro("Consulta não encontrada.");
-            return null;
-        }
-
-        if (request.DataHora <= DateTime.Now)
-        {
-            _coletorErros.AdicionarErro(
-                "A nova data da consulta deve ser futura.");
-            return null;
-        }
-
-        if (request.DuracaoMinutos <= 0)
-        {
-            _coletorErros.AdicionarErro(
-                "A duração deve ser maior que zero.");
-            return null;
-        }
-
-        var dataHoraFim = request.DataHora.AddMinutes(
-            request.DuracaoMinutos);
-
-        var existeConflito = await _uow.Consultas.ExisteConflitoAsync(
-            consulta.MedicoId,
-            consulta.PacienteId,
+        consulta.Reagendar(
+            request.MedicoId,
             request.DataHora,
-            dataHoraFim,
-            consulta.Id);
-
-        if (existeConflito)
-        {
-            _coletorErros.AdicionarErro(
-                "Já existe uma consulta nesse horário para o médico ou paciente.");
-            return null;
-        }
-
-        try
-        {
-            consulta.Reagendar(
-                request.DataHora,
-                request.DuracaoMinutos);
-        }
-        catch (InvalidOperationException ex)
-        {
-            _coletorErros.AdicionarErro(ex.Message);
-            return null;
-        }
+            request.DuracaoMinutos);
 
         await _uow.Consultas.Atualizar(consulta);
         await _uow.Confirmar();
@@ -188,50 +111,30 @@ public class ConsultaService(
 
     public async Task<bool> Confirmar(Guid codigo)
     {
-        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
-
-        if (consulta is null)
-        {
-            _coletorErros.AdicionarErro("Consulta não encontrada.");
+        if (!await ValidarConsulta(codigo, null, OperacaoConsulta.Confirmar))
             return false;
-        }
 
-        try
-        {
-            consulta.Confirmar();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _coletorErros.AdicionarErro(ex.Message);
-            return false;
-        }
+        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "A consulta validada não foi encontrada.");
 
+        consulta.Confirmar();
         await _uow.Consultas.Atualizar(consulta);
         await _uow.Confirmar();
 
         return true;
     }
 
-    public async Task<bool> Cancelar(Guid codigo)
+    public async Task<bool> Cancelar(Guid codigo, Guid usuarioId)
     {
-        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
-
-        if (consulta is null)
-        {
-            _coletorErros.AdicionarErro("Consulta não encontrada.");
+        if (!await ValidarConsulta(codigo, usuarioId, OperacaoConsulta.Cancelar))
             return false;
-        }
 
-        try
-        {
-            consulta.Cancelar();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _coletorErros.AdicionarErro(ex.Message);
-            return false;
-        }
+        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "A consulta validada não foi encontrada.");
 
+        consulta.Cancelar();
         await _uow.Consultas.Atualizar(consulta);
         await _uow.Confirmar();
 
@@ -240,29 +143,30 @@ public class ConsultaService(
 
     public async Task<bool> Concluir(Guid codigo)
     {
-        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo);
-
-        if (consulta is null)
-        {
-            _coletorErros.AdicionarErro("Consulta não encontrada.");
+        if (!await ValidarConsulta(codigo, null, OperacaoConsulta.Concluir))
             return false;
-        }
 
-        try
-        {
-            consulta.Concluir();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _coletorErros.AdicionarErro(ex.Message);
-            return false;
-        }
+        var consulta = await _uow.Consultas.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "A consulta validada não foi encontrada.");
 
+        consulta.Concluir();
         await _uow.Consultas.Atualizar(consulta);
         await _uow.Confirmar();
 
         return true;
     }
+
+    private Task<bool> ValidarConsulta(
+        Guid codigo,
+        Guid? usuarioId,
+        OperacaoConsulta operacao) =>
+        _validador.ValidarAsync(new ValidarConsultaRequest
+        {
+            Codigo = codigo,
+            UsuarioId = usuarioId,
+            Operacao = operacao
+        });
 
     private static ConsultaResponse MapearParaResponse(Consulta consulta)
     {

@@ -8,6 +8,7 @@ namespace MedCore.Business.Interfaces;
 
 public interface IUsuarioService
 {
-    Task<UsuarioResponse?> Cadastrar(UsuarioRequest request);
+    Task<PacienteResponse?> CadastrarPaciente(UsuarioRequest request);
+    Task<MedicoResponse?> CadastrarMedico(MedicoRequest request);
     Task<LoginResponse?> Login(LoginRequest request);
 }

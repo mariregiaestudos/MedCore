@@ -1,4 +1,5 @@
-﻿using MedCore.Business.Interfaces.IRepositorios;
+﻿using MedCore.Business.DTOs.Request;
+using MedCore.Business.Interfaces.IRepositorios;
 using MedCore.Dominio;
 using MedCore.Dominio.Enums;
 using MedCore.Infraestrutura.Contexto;
@@ -39,19 +40,29 @@ public class ConsultaRepositorio(MedCoreContexto _context)
     {
         var query = _context.Consultas.AsQueryable();
 
-        if (filtros.PacienteId != Guid.Empty)
+        if (filtros.PacienteId.HasValue)
         {
-            query = query.Where(c => c.PacienteId == filtros.PacienteId);
+            query = query.Where(c => c.PacienteId == filtros.PacienteId.Value);
         }
 
-        if (filtros.MedicoId != Guid.Empty)
+        if (filtros.MedicoId.HasValue)
         {
-            query = query.Where(c => c.MedicoId == filtros.MedicoId);
+            query = query.Where(c => c.MedicoId == filtros.MedicoId.Value);
         }
 
-        if (filtros.Status != null)
+        if (filtros.DataInicio.HasValue)
         {
-            query = query.Where(c => c.Status == filtros.Status);
+            query = query.Where(c => c.DataHora >= filtros.DataInicio.Value);
+        }
+
+        if (filtros.DataFim.HasValue)
+        {
+            query = query.Where(c => c.DataHora <= filtros.DataFim.Value);
+        }
+
+        if (filtros.Status.HasValue)
+        {
+            query = query.Where(c => c.Status == filtros.Status.Value);
         }
 
         return await query.ToListAsync();

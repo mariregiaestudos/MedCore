@@ -12,14 +12,16 @@ namespace MedCore.Api.Controllers;
 [Route("api/[controller]")]
 public class PacientesController(
     IPacienteService _servico,
+    IUsuarioService _usuarios,
     IRespostaPadrao _resposta) : ControllerBase
 {
+    [AllowAnonymous]
     [HttpPost]
-    public async Task<ActionResult<RespostaApi<PacienteResponse>>> Criar(
-        [FromBody] PacienteRequest request)
+    public async Task<ActionResult<RespostaApi<PacienteResponse>>> Cadastrar(
+        [FromBody] UsuarioRequest request)
     {
         return await _resposta.Executar(
-            () => _servico.Criar(request),
+            () => _usuarios.CadastrarPaciente(request),
             criado: true);
     }
 
@@ -37,15 +39,6 @@ public class PacientesController(
     {
         return await _resposta.Executar(
             async () => await _servico.Buscar(filtros));
-    }
-
-    [HttpPut("{codigo:guid}")]
-    public async Task<ActionResult<RespostaApi<PacienteResponse>>> Atualizar(
-        Guid codigo,
-        [FromBody] PacienteRequest request)
-    {
-        return await _resposta.Executar(
-            () => _servico.Atualizar(codigo, request));
     }
 
     [HttpPatch("{codigo:guid}/desativar")]

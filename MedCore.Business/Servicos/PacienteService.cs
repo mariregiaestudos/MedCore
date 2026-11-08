@@ -2,25 +2,23 @@
 using MedCore.Business.DTOs.Request;
 using MedCore.Business.DTOs.Response;
 using MedCore.Business.Interfaces;
+using MedCore.Business.Validadores;
 using MedCore.Dominio;
 
 namespace MedCore.Business.Servicos;
 
 public class PacienteService(
     IUnityOfWork _uow,
-    IColetorErros _coletorErros) : IPacienteService
+    ValidadorService _validador) : IPacienteService
 {
     public async Task<PacienteResponse?> BuscarPorCodigo(Guid codigo)
     {
-        var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
-
-        if (paciente is null)
-        {
-            _coletorErros.AdicionarErro(
-                "Paciente não encontrado.");
-
+        if (!await ValidarPaciente(codigo, OperacaoPaciente.Buscar))
             return null;
-        }
+
+        var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "O paciente validado não foi encontrado.");
 
         return MapearParaResponse(paciente);
     }
@@ -37,15 +35,12 @@ public class PacienteService(
 
     public async Task<bool> Desativar(Guid codigo)
     {
-        var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo);
-
-        if (paciente is null)
-        {
-            _coletorErros.AdicionarErro(
-                "Paciente não encontrado.");
-
+        if (!await ValidarPaciente(codigo, OperacaoPaciente.Desativar))
             return false;
-        }
+
+        var paciente = await _uow.Pacientes.BuscarPorCodigo(codigo)
+            ?? throw new InvalidOperationException(
+                "O paciente validado não foi encontrado.");
 
         paciente.Desativar();
 
@@ -54,6 +49,13 @@ public class PacienteService(
 
         return true;
     }
+
+    private Task<bool> ValidarPaciente(Guid codigo, OperacaoPaciente operacao) =>
+        _validador.ValidarAsync(new ValidarPacienteRequest
+        {
+            Codigo = codigo,
+            Operacao = operacao
+        });
 
     private static PacienteResponse MapearParaResponse(
         Paciente paciente)

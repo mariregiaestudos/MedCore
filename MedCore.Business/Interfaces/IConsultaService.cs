@@ -8,19 +8,24 @@ namespace MedCore.Business.Interfaces;
 
 public interface IConsultaService
 {
-    Task<ConsultaResponse?> Agendar(ConsultaRequest request);
+    Task<ConsultaResponse?> Agendar(
+        Guid usuarioId,
+        ConsultaRequest request);
 
-    Task<ConsultaResponse?> BuscarPorCodigo(Guid codigo);
+    Task<ConsultaResponse?> BuscarPorCodigo(Guid codigo, Guid usuarioId);
 
-    Task<List<ConsultaResponse>> Buscar(BuscarConsultaRequest filtros);
+    Task<List<ConsultaResponse>> Buscar(
+        BuscarConsultaRequest filtros,
+        Guid usuarioId);
 
     Task<ConsultaResponse?> Reagendar(
         Guid codigo,
+        Guid usuarioId,
         ReagendarConsultaRequest request);
 
     Task<bool> Confirmar(Guid codigo);
 
-    Task<bool> Cancelar(Guid codigo);
+    Task<bool> Cancelar(Guid codigo, Guid usuarioId);
 
     Task<bool> Concluir(Guid codigo);
 }

@@ -11,15 +11,6 @@ public class UsuarioController(
     IUsuarioService _servico,
     IRespostaPadrao _resposta) : ControllerBase
 {
-    [HttpPost]
-    public async Task<ActionResult<RespostaApi<UsuarioResponse?>>> Cadastrar(
-        [FromBody] UsuarioRequest request)
-    {
-        return await _resposta.Executar(
-            () => _servico.Cadastrar(request),
-            criado: true);
-    }
-
     [HttpPost("login")]
     public async Task<ActionResult<RespostaApi<LoginResponse>>> Login(
     [FromBody] LoginRequest request)

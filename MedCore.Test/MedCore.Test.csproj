@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\MedCore.Dominio\MedCore.Dominio.csproj" />
+    <ProjectReference Include="..\MedCore.Business\MedCore.Business.csproj" />
   </ItemGroup>
 
   <ItemGroup>

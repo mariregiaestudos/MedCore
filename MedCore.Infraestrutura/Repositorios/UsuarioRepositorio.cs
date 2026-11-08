@@ -37,9 +37,14 @@ public class UsuarioRepositorio : IUsuarioRepositorio
 
         if (!string.IsNullOrWhiteSpace(request.CPF))
         {
-            var cpf = request.CPF.Trim();
+            var cpf = new string(
+                request.CPF.Where(char.IsAsciiDigit).ToArray());
+            var cpfFormatado = cpf.Length == 11
+                ? $"{cpf[..3]}.{cpf[3..6]}.{cpf[6..9]}-{cpf[9..]}"
+                : cpf;
 
-            query = query.Where(u => u.CPF == cpf);
+            query = query.Where(u =>
+                u.CPF == cpf || u.CPF == cpfFormatado);
         }
 
         return await query.SingleOrDefaultAsync();

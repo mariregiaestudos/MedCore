@@ -11,4 +11,5 @@ public class MedicoResponse
     public string CRM { get; set; } = string.Empty;
     public string UF { get; set; } = string.Empty;
     public string Especialidade { get; set; } = string.Empty;
+    public bool Ativo { get; set; }
 }

@@ -25,6 +25,7 @@ public class MedicoRepositorio(MedCoreContexto _context)
     public async Task<Medico?> BuscarPorUsuarioId(Guid usuarioId)
     {
         return await _context.Medicos
+            .Include(m => m.Usuario)
             .FirstOrDefaultAsync(m => m.UsuarioId == usuarioId);
     }
 
@@ -35,6 +36,11 @@ public class MedicoRepositorio(MedCoreContexto _context)
             .AsNoTracking()
             .Include(m => m.Usuario)
             .AsQueryable();
+
+        if (filtros.Ativo.HasValue)
+        {
+            query = query.Where(m => m.Ativo == filtros.Ativo.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(filtros.Nome))
         {

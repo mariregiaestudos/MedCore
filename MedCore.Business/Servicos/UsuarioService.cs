@@ -17,203 +17,155 @@ namespace MedCore.Business.Servicos;
 public class UsuarioService(
     IUnityOfWork _uow,
     ValidadorService _validador,
-    IColetorErros _coletorErros,
     IConfiguration _config) : IUsuarioService
 {
     private readonly PasswordHasher<Usuario> _passwordHasher = new();
 
-    public async Task<UsuarioResponse?> Cadastrar(
+    public async Task<PacienteResponse?> CadastrarPaciente(
         UsuarioRequest request)
     {
-        if (!await _validador.ValidarAsync(request))
-            return null;
+        var usuario = await CadastrarPerfil(
+            request,
+            TipoCadastro.Paciente);
 
-        if (!Enum.IsDefined(typeof(TipoCadastro), request.TipoCadastro))
-        {
-            _coletorErros.AdicionarErro(
-                "Tipo de cadastro inválido.");
-
-            return null;
-        }
-
-        var email = request.Email!.Trim().ToLowerInvariant();
-        var cpf = request.CPF!.Trim();
-
-        // Busca usuários existentes pelo e-mail e pelo CPF.
-        var usuarioPorEmail = await _uow.Usuarios.Buscar(
-            new BuscarUsuarioRequest { Email = email });
-
-        var usuarioPorCPF = await _uow.Usuarios.Buscar(
-            new BuscarUsuarioRequest { CPF = cpf });
-
-        // E-mail e CPF não podem pertencer a usuários diferentes.
-        if (usuarioPorEmail is not null &&
-            usuarioPorCPF is not null &&
-            usuarioPorEmail.Id != usuarioPorCPF.Id)
-        {
-            _coletorErros.AdicionarErro(
-                "E-mail e CPF pertencem a usuários diferentes.");
-
-            return null;
-        }
-
-        // Se o e-mail existe, mas o CPF não, não associamos a conta.
-        if (usuarioPorEmail is not null &&
-            usuarioPorCPF is null)
-        {
-            _coletorErros.AdicionarErro(
-                "O e-mail informado já está cadastrado.");
-
-            return null;
-        }
-
-        var usuario = usuarioPorCPF;
-
-        // Valida a conta existente.
-        if (usuario is not null)
-        {
-            var resultadoSenha =
-                _passwordHasher.VerifyHashedPassword(
-                    usuario,
-                    usuario.SenhaHash,
-                    request.Senha!);
-
-            if (resultadoSenha == PasswordVerificationResult.Failed)
-            {
-                _coletorErros.AdicionarErro(
-                    "Não foi possível validar o usuário existente.");
-
-                return null;
-            }
-
-            if (!usuario.Ativo)
-            {
-                _coletorErros.AdicionarErro(
-                    "Este usuário está inativo.");
-
-                return null;
-            }
-
-            // Não altera os dados pessoais nem a senha da conta existente.
-        }
-
-        // Valida o perfil antes de adicionar qualquer entidade ao contexto.
-        switch (request.TipoCadastro)
-        {
-            case TipoCadastro.Paciente:
-                {
-                    if (usuario is not null)
-                    {
-                        var pacienteExistente =
-                            await _uow.Pacientes.BuscarPorUsuarioId(usuario.Id);
-
-                        if (pacienteExistente is not null)
-                        {
-                            _coletorErros.AdicionarErro(
-                                "Este usuário já possui cadastro de paciente.");
-
-                            return null;
-                        }
-                    }
-
-                    break;
-                }
-
-            case TipoCadastro.Medico:
-                {
-                    if (string.IsNullOrWhiteSpace(request.CRM) ||
-                        string.IsNullOrWhiteSpace(request.UF) ||
-                        string.IsNullOrWhiteSpace(request.Especialidade))
-                    {
-                        _coletorErros.AdicionarErro(
-                            "CRM, UF e especialidade são obrigatórios para médicos.");
-
-                        return null;
-                    }
-
-                    var crm = request.CRM.Trim();
-                    var uf = request.UF.Trim().ToUpperInvariant();
-
-                    if (uf.Length != 2)
-                    {
-                        _coletorErros.AdicionarErro(
-                            "UF inválida.");
-
-                        return null;
-                    }
-
-                    if (await _uow.Medicos.ExisteCRM(crm, uf))
-                    {
-                        _coletorErros.AdicionarErro(
-                            "Já existe um médico cadastrado com este CRM e UF.");
-
-                        return null;
-                    }
-
-                    if (usuario is not null)
-                    {
-                        var medicoExistente =
-                            await _uow.Medicos.BuscarPorUsuarioId(usuario.Id);
-
-                        if (medicoExistente is not null)
-                        {
-                            _coletorErros.AdicionarErro(
-                                "Este usuário já possui cadastro de médico.");
-
-                            return null;
-                        }
-                    }
-
-                    break;
-                }
-        }
-
-        // Se não existe usuário, cria a conta após todas as validações.
         if (usuario is null)
+            return null;
+
+        var paciente = await _uow.Pacientes.BuscarPorUsuarioId(usuario.Id);
+
+        if (paciente is null)
         {
-            usuario = new Usuario(
-                request.Nome!,
-                email,
-                cpf,
-                request.DataNascimento,
-                "hash-temporario");
-
-            var senhaHash = _passwordHasher.HashPassword(
-                usuario,
-                request.Senha!);
-
-            usuario.AlterarSenhaHash(senhaHash);
-
-            await _uow.Usuarios.Criar(usuario);
+            throw new InvalidOperationException(
+                "Não foi possível carregar o cadastro do paciente criado.");
         }
 
-        // Cria o perfil correspondente ao tipo de cadastro.
-        switch (request.TipoCadastro)
+        return new PacienteResponse
         {
-            case TipoCadastro.Paciente:
-                {
-                    var paciente = new Paciente(usuario.Id);
+            Id = paciente.Id,
+            Nome = paciente.Usuario.Nome,
+            Email = paciente.Usuario.Email
+        };
+    }
 
-                    await _uow.Pacientes.Criar(paciente);
-                    break;
-                }
+    public async Task<MedicoResponse?> CadastrarMedico(
+        MedicoRequest request)
+    {
+        var usuario = await CadastrarPerfil(
+            request,
+            TipoCadastro.Medico,
+            request);
 
-            case TipoCadastro.Medico:
-                {
-                    var medico = new Medico(
-                        usuario.Id,
-                        request.CRM!.Trim(),
-                        request.UF!.Trim().ToUpperInvariant(),
-                        request.Especialidade!.Trim());
+        if (usuario is null)
+            return null;
 
-                    await _uow.Medicos.Criar(medico);
-                    break;
-                }
+        var medico = await _uow.Medicos.BuscarPorUsuarioId(usuario.Id);
+
+        if (medico is null)
+        {
+            throw new InvalidOperationException(
+                "Não foi possível carregar o cadastro do médico criado.");
         }
 
+        return new MedicoResponse
+        {
+            Id = medico.Id,
+            Nome = medico.Usuario.Nome,
+            CRM = medico.CRM,
+            UF = medico.UF,
+            Especialidade = medico.Especialidade,
+            Ativo = medico.Ativo
+        };
+    }
+
+    private async Task<UsuarioResponse?> CadastrarPerfil(
+        UsuarioRequest request,
+        TipoCadastro tipoCadastro,
+        MedicoRequest? medicoRequest = null)
+    {
+        if (!await ValidarRequestCadastro(request, tipoCadastro, medicoRequest))
+            return null;
+
+        var validacaoCadastro = new ValidarCadastroPerfilRequest
+        {
+            Usuario = request,
+            TipoCadastro = tipoCadastro,
+            Medico = medicoRequest
+        };
+
+        if (!await _validador.ValidarAsync(validacaoCadastro))
+            return null;
+
+        var usuario = await BuscarOuCriarUsuario(request);
+        await CriarPerfil(usuario, tipoCadastro, medicoRequest);
         await _uow.Confirmar();
 
         return MapearParaResponse(usuario);
+    }
+
+    private Task<bool> ValidarRequestCadastro(
+        UsuarioRequest request,
+        TipoCadastro tipoCadastro,
+        MedicoRequest? medicoRequest) =>
+        tipoCadastro switch
+        {
+            TipoCadastro.Paciente =>
+                _validador.ValidarAsync<UsuarioRequest>(request),
+            TipoCadastro.Medico when medicoRequest is not null =>
+                _validador.ValidarAsync<MedicoRequest>(medicoRequest),
+            _ => throw new ArgumentOutOfRangeException(nameof(tipoCadastro))
+        };
+
+    private async Task<Usuario> BuscarOuCriarUsuario(UsuarioRequest request)
+    {
+        var email = request.Email.Trim().ToLowerInvariant();
+        var usuario = await _uow.Usuarios.Buscar(
+            new BuscarUsuarioRequest { Email = email });
+
+        if (usuario is not null)
+            return usuario;
+
+        usuario = new Usuario(
+            request.Nome,
+            email,
+            request.CPF.Trim(),
+            request.DataNascimento,
+            "hash-temporario");
+
+        var senhaHash = _passwordHasher.HashPassword(usuario, request.Senha);
+        usuario.AlterarSenhaHash(senhaHash);
+        await _uow.Usuarios.Criar(usuario);
+
+        return usuario;
+    }
+
+    private async Task CriarPerfil(
+        Usuario usuario,
+        TipoCadastro tipoCadastro,
+        MedicoRequest? medicoRequest)
+    {
+        switch (tipoCadastro)
+        {
+            case TipoCadastro.Paciente:
+                await _uow.Pacientes.Criar(new Paciente(usuario.Id));
+                break;
+
+            case TipoCadastro.Medico:
+                if (medicoRequest is null)
+                    throw new InvalidOperationException(
+                        "Os dados profissionais do médico são obrigatórios.");
+
+                var medico = new Medico(
+                    usuario.Id,
+                    medicoRequest.CRM!.Trim(),
+                    medicoRequest.UF!.Trim().ToUpperInvariant(),
+                    medicoRequest.Especialidade!.Trim());
+
+                await _uow.Medicos.Criar(medico);
+                break;
+
+            default:
+                throw new ArgumentOutOfRangeException(nameof(tipoCadastro));
+        }
     }
 
     public async Task<LoginResponse?> Login(LoginRequest request)
@@ -224,31 +176,9 @@ public class UsuarioService(
         var email = request.Email!.Trim().ToLowerInvariant();
 
         var usuario = await _uow.Usuarios.Buscar(
-            new BuscarUsuarioRequest
-            {
-                Email = email
-            });
-
-        if (usuario is null || !usuario.Ativo)
-        {
-            _coletorErros.AdicionarErro(
-                "E-mail ou senha inválidos.");
-
-            return null;
-        }
-
-        var resultado = _passwordHasher.VerifyHashedPassword(
-            usuario,
-            usuario.SenhaHash,
-            request.Senha!);
-
-        if (resultado == PasswordVerificationResult.Failed)
-        {
-            _coletorErros.AdicionarErro(
-                "E-mail ou senha inválidos.");
-
-            return null;
-        }
+            new BuscarUsuarioRequest { Email = email })
+            ?? throw new InvalidOperationException(
+                "O usuário autenticado não foi encontrado.");
 
         var chave = _config["Jwt:Key"]!;
         var emissor = _config["Jwt:Issuer"]!;

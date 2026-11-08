@@ -10,4 +10,5 @@ public class BuscarMedicoRequest
     public string? CRM { get; set; }
     public string? UF { get; set; }
     public string? Especialidade { get; set; }
+    public bool? Ativo { get; set; }
 }

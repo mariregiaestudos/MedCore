@@ -25,6 +25,7 @@ public class PacienteRepository(
     public async Task<Paciente?> BuscarPorUsuarioId(Guid usuarioId)
     {
         return await _contexto.Pacientes
+            .Include(p => p.Usuario)
             .FirstOrDefaultAsync(p => p.UsuarioId == usuarioId);
     }
 
